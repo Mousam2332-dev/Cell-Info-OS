@@ -86,16 +86,6 @@ public class MainActivity extends AppCompatActivity {
         return totalMeters + " m";
     }
 
-    // NetMonster-style modern vibrant signal background colors with good contrast
-    private int getRsrpColor(int rsrp) {
-        if (rsrp == CellInfo.UNAVAILABLE || rsrp == 0) return Color.parseColor("#121216");
-        if (rsrp >= -80) return Color.parseColor("#0E3B21"); // Excellent (Vibrant Emerald)
-        if (rsrp >= -90) return Color.parseColor("#343B0E"); // Good (Olive Green)
-        if (rsrp >= -100) return Color.parseColor("#4D350A"); // Fair (Amber)
-        if (rsrp >= -110) return Color.parseColor("#4D1F0A"); // Poor (Orange)
-        return Color.parseColor("#4D0A0A"); // Bad (Red)
-    }
-
     private void updateCellMetrics() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             return;
@@ -138,6 +128,7 @@ public class MainActivity extends AppCompatActivity {
                 LinearLayout card = new LinearLayout(this);
                 card.setOrientation(LinearLayout.VERTICAL);
                 card.setPadding(24, 20, 24, 20);
+                card.setBackgroundColor(Color.parseColor("#141418")); // Sleek NetMonster dark card background
 
                 LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
@@ -163,22 +154,19 @@ public class MainActivity extends AppCompatActivity {
                     int rssnr = signal.getRssnr();
                     int ta = signal.getTimingAdvance();
 
-                    card.setBackgroundColor(getRsrpColor(rsrp));
+                    int band = (identity.getBands().length > 0) ? identity.getBands()[0] : 0;
 
-                    // Top Row: Operator Name & MCC MNC
                     card.addView(createTopRow(operatorName.toUpperCase(), identity.getMcc() + " " + identity.getMnc()));
-                    // Tech Badge Row
-                    card.addView(createBadgeRow("4G | LTE Band " + identity.getBands()));
+                    card.addView(createBadgeRow("4G | LTE Band " + band));
 
-                    // 2-Column Grid Layout
                     LinearLayout grid = new LinearLayout(this);
                     grid.setOrientation(LinearLayout.VERTICAL);
                     grid.setPadding(0, 6, 0, 0);
 
                     grid.addView(createPairRow("CI", String.valueOf(ci), "ARFCN", String.valueOf(identity.getEarfcn())));
-                    grid.addView(createPairRow("eNB:CI", enbId + ":" + sectorId, "S-RSRP", rsrp + " dBm"));
-                    grid.addView(createPairRow("TAC", String.valueOf(identity.getTac()), "S-RSRQ", rsrq + " dB"));
-                    grid.addView(createPairRow("PCI", String.valueOf(identity.getPci()), "S-SNR", (rssnr != CellInfo.UNAVAILABLE ? rssnr + " dB" : "N/A")));
+                    grid.addView(createPairRow("eNB:CI", enbId + ":" + sectorId, "RSRP", rsrp + " dBm"));
+                    grid.addView(createPairRow("TAC", String.valueOf(identity.getTac()), "RSRQ", rsrq + " dB"));
+                    grid.addView(createPairRow("PCI", String.valueOf(identity.getPci()), "SNR", (rssnr != CellInfo.UNAVAILABLE ? rssnr + " dB" : "N/A")));
                     grid.addView(createPairRow("TA", ta + " | " + formatDistance(ta, false), "BW", "10 MHz"));
 
                     card.addView(grid);
@@ -199,11 +187,8 @@ public class MainActivity extends AppCompatActivity {
                     int ta = extractTimingAdvance(cellStr);
 
                     int arfcn = identity.getNrarfcn();
-                    // High-band check for n78, n77, n41, n40
                     boolean isHighBand = (arfcn >= 620000 && arfcn <= 680000) || 
                                          (arfcn >= 499200 && arfcn <= 537999);
-
-                    card.setBackgroundColor(getRsrpColor(ssRsrp));
 
                     card.addView(createTopRow(operatorName.toUpperCase(), identity.getMccString() + " " + identity.getMncString()));
                     card.addView(createBadgeRow("5G | SA ARFCN " + arfcn));
