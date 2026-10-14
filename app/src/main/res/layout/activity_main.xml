@@ -3,9 +3,10 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#000000"
-    android:padding="16dp">
+    android:padding="12dp">
 
     <LinearLayout
+        android:id="@+id/cards_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical">
@@ -15,20 +16,9 @@
             android:layout_height="wrap_content"
             android:text="Cellular Monitor"
             android:textColor="#FFFFFF"
-            android:textSize="26sp"
+            android:textSize="22sp"
             android:textStyle="bold"
-            android:layout_marginBottom="16dp" />
-
-        <TextView
-            android:id="@+id/txt_cell_info"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Scanning cell towers...\n(Ensure Location permission is granted)"
-            android:textColor="#00FF66"
-            android:textSize="15sp"
-            android:fontFamily="monospace"
-            android:background="#18181F"
-            android:padding="16dp" />
+            android:layout_marginBottom="12dp" />
 
     </LinearLayout>
 </ScrollView>
