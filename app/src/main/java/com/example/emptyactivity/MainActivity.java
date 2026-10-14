@@ -41,7 +41,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void run() {
                 updateCellMetrics();
-                handler.postDelayed(this, 2000); // Re-triggers every 2 seconds
+                handler.postDelayed(this, 2000); // Refreshes every 2 seconds
             }
         };
     }
@@ -49,13 +49,13 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        handler.post(refreshRunnable); // Starts the loop immediately when app opens
+        handler.post(refreshRunnable); // Starts the refresh loop when app opens/resumes
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        handler.removeCallbacks(refreshRunnable); // Stops loop when app is minimized
+        handler.removeCallbacks(refreshRunnable); // Stops loop when app is minimized to save battery
     }
 
     private void updateCellMetrics() {
@@ -81,7 +81,7 @@ public class MainActivity extends AppCompatActivity {
                         CellIdentityLte identity = lte.getCellIdentity();
                         int ci = identity.getCi();
 
-                        // Filter out invalid/placeholder phantom towers (like 268435455 / 0xFFFFFFF)
+                        // Filter out invalid/placeholder phantom towers
                         if (ci == 268435455 || ci == -1 || ci == Integer.MAX_VALUE) {
                             continue;
                         }
@@ -100,13 +100,6 @@ public class MainActivity extends AppCompatActivity {
                         sb.append("eNB ID: ").append(enbId != -1 ? enbId : "N/A").append(" | Sector: ").append(sectorId != -1 ? sectorId : "N/A").append("\n");
                         sb.append("RSRP: ").append(signal.getRsrp()).append(" dBm\n");
                         sb.append("RSRQ: ").append(signal.getRsrq()).append(" dB\n");
-
-                        // Extract SINR for Android 10+ (API 29+)
-                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                            int sinr = signal.getSinr();
-                            sb.append("SINR: ").append((sinr != CellInfo.UNAVAILABLE && sinr != Integer.MAX_VALUE) ? sinr + " dB" : "N/A").append("\n");
-                        }
-
                         sb.append("Timing Advance: ").append(signal.getTimingAdvance()).append("\n\n");
 
                     } else if (cell instanceof CellInfoNr) {
@@ -120,8 +113,7 @@ public class MainActivity extends AppCompatActivity {
                         sb.append("NR PCI: ").append(identity.getPci()).append(" | ARFCN: ").append(identity.getNrarfcn()).append("\n");
                         sb.append("TAC: ").append(identity.getTac()).append(" | NCI: ").append(identity.getNci()).append("\n");
                         sb.append("SS-RSRP: ").append(signal.getSsRsrp()).append(" dBm\n");
-                        sb.append("SS-RSRQ: ").append(signal.getSsRsrq()).append(" dB\n");
-                        sb.append("SS-SINR: ").append(signal.getSsSinr()).append(" dB\n\n");
+                        sb.append("SS-RSRQ: ").append(signal.getSsRsrq()).append(" dB\n\n");
                     }
                 }
                 if (validCount == 0) {
