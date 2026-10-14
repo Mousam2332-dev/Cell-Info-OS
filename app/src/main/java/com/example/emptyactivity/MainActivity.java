@@ -40,7 +40,7 @@ public class MainActivity extends AppCompatActivity {
         refreshRunnable = new Runnable() {
             @Override
             public void run() {
-                updateCellMetrics();
+                updateRawMetrics();
                 handler.postDelayed(this, 1000); // Live refresh every 1 second
             }
         };
@@ -58,13 +58,13 @@ public class MainActivity extends AppCompatActivity {
         handler.removeCallbacks(refreshRunnable);
     }
 
-    private void updateCellMetrics() {
+    private void updateRawMetrics() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             infoTextView.setText("Permission required for cell telemetry.\nPlease grant Location permission.");
             return;
         }
 
-        // Force modem to push fresh radio telemetry on Android 10+ (API 29+)
+        // Force modem refresh on Android 10+
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
             try {
                 telephonyManager.requestCellInfoUpdate(getMainExecutor(), new TelephonyManager.CellInfoCallback() {
@@ -75,73 +75,31 @@ public class MainActivity extends AppCompatActivity {
         }
 
         StringBuilder sb = new StringBuilder();
-        sb.append("=== REAL-TIME TELEMETRY ===\n\n");
+        sb.append("=== RAW MODEM DUMP ===\n\n");
 
         try {
+            // 1. Dump all CellInfo objects raw toString()
             List<CellInfo> allCells = telephonyManager.getAllCellInfo();
             if (allCells == null || allCells.isEmpty()) {
-                sb.append("No cell info available.\nEnsure Location/GPS is turned ON.\n");
+                sb.append("getAllCellInfo() is EMPTY. Turn on GPS/Location.\n\n");
             } else {
-                int validCount = 0;
+                sb.append("--- getAllCellInfo() ---\n");
                 for (int i = 0; i < allCells.size(); i++) {
-                    CellInfo cell = allCells.get(i);
-
-                    if (cell instanceof CellInfoLte) {
-                        CellInfoLte lte = (CellInfoLte) cell;
-                        CellIdentityLte identity = lte.getCellIdentity();
-                        int ci = identity.getCi();
-
-                        // Filter out placeholder phantom towers
-                        if (ci == 268435455 || ci == -1 || ci == Integer.MAX_VALUE) {
-                            continue;
-                        }
-
-                        validCount++;
-                        CellSignalStrengthLte signal = lte.getCellSignalStrength();
-
-                        int enbId = (ci != CellInfo.UNAVAILABLE) ? (ci >> 8) : -1;
-                        int sectorId = (ci != CellInfo.UNAVAILABLE) ? (ci & 0xFF) : -1;
-                        int rssnr = signal.getRssnr();
-                        int ta = signal.getTimingAdvance();
-
-                        sb.append("--- Tower [").append(validCount).append("] (LTE) ---\n");
-                        sb.append("Registered: ").append(cell.isRegistered() ? "YES" : "NO").append("\n");
-                        sb.append("PCI: ").append(identity.getPci()).append(" | EARFCN: ").append(identity.getEarfcn()).append("\n");
-                        sb.append("TAC: ").append(identity.getTac()).append("\n");
-                        sb.append("Cell ID (CI): ").append(ci).append("\n");
-                        sb.append("eNB ID: ").append(enbId != -1 ? enbId : "N/A").append(" | Sector: ").append(sectorId != -1 ? sectorId : "N/A").append("\n");
-                        sb.append("RSRP: ").append(signal.getRsrp()).append(" dBm\n");
-                        sb.append("RSRQ: ").append(signal.getRsrq()).append(" dB\n");
-                        sb.append("SINR: ").append((rssnr != CellInfo.UNAVAILABLE && rssnr != Integer.MAX_VALUE) ? rssnr + " dB" : "N/A").append("\n");
-                        sb.append("Timing Advance: ").append((ta != CellInfo.UNAVAILABLE && ta != Integer.MAX_VALUE && ta != 2147483647) ? ta : "N/A").append("\n\n");
-
-                    } else if (cell instanceof CellInfoNr) {
-                        CellInfoNr nr = (CellInfoNr) cell;
-                        CellIdentityNr identity = (CellIdentityNr) nr.getCellIdentity();
-                        CellSignalStrengthNr signal = (CellSignalStrengthNr) nr.getCellSignalStrength();
-
-                        int nrTa = CellInfo.UNAVAILABLE;
-                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-                            nrTa = signal.getTimingAdvance();
-                        }
-
-                        sb.append("--- Tower [").append(validCount + 1).append("] (5G NR) ---\n");
-                        validCount++;
-                        sb.append("Registered: ").append(cell.isRegistered() ? "YES" : "NO").append("\n");
-                        sb.append("NR PCI: ").append(identity.getPci()).append(" | ARFCN: ").append(identity.getNrarfcn()).append("\n");
-                        sb.append("TAC: ").append(identity.getTac()).append(" | NCI: ").append(identity.getNci()).append("\n");
-                        sb.append("SS-RSRP: ").append(signal.getSsRsrp()).append(" dBm\n");
-                        sb.append("SS-RSRQ: ").append(signal.getSsRsrq()).append(" dB\n");
-                        sb.append("SS-SINR: ").append(signal.getSsSinr()).append(" dB\n");
-                        sb.append("Timing Advance: ").append((nrTa != CellInfo.UNAVAILABLE && nrTa != Integer.MAX_VALUE && nrTa != 2147483647) ? nrTa : "N/A").append("\n\n");
-                    }
-                }
-                if (validCount == 0) {
-                    sb.append("Scanning for active valid serving cells...\n");
+                    sb.append("[").append(i).append("] ").append(allCells.get(i).toString()).append("\n\n");
                 }
             }
+
+            // 2. Dump SignalStrength object raw toString()
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                SignalStrength ss = telephonyManager.getSignalStrength();
+                if (ss != null) {
+                    sb.append("--- getSignalStrength() ---\n");
+                    sb.append(ss.toString()).append("\n");
+                }
+            }
+
         } catch (SecurityException e) {
-            sb.append("Security Exception reading cell info.\n");
+            sb.append("Security Exception reading raw info.\n");
         }
 
         infoTextView.setText(sb.toString());
