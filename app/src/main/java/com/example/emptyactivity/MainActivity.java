@@ -41,7 +41,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void run() {
                 updateCellMetrics();
-                handler.postDelayed(this, 2000); // Refreshes every 2 seconds
+                handler.postDelayed(this, 1000); // True live refresh every 1 second
             }
         };
     }
@@ -64,7 +64,7 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        // Force modem to pull fresh cell telemetry on Android 10+
+        // Force modem to push fresh radio telemetry on Android 10+ (API 29+)
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
             try {
                 telephonyManager.requestCellInfoUpdate(getMainExecutor(), new TelephonyManager.CellInfoCallback() {
@@ -91,7 +91,7 @@ public class MainActivity extends AppCompatActivity {
                         CellIdentityLte identity = lte.getCellIdentity();
                         int ci = identity.getCi();
 
-                        // Filter out invalid/placeholder phantom towers
+                        // Filter out placeholder phantom towers
                         if (ci == 268435455 || ci == -1 || ci == Integer.MAX_VALUE) {
                             continue;
                         }
@@ -101,7 +101,8 @@ public class MainActivity extends AppCompatActivity {
 
                         int enbId = (ci != CellInfo.UNAVAILABLE) ? (ci >> 8) : -1;
                         int sectorId = (ci != CellInfo.UNAVAILABLE) ? (ci & 0xFF) : -1;
-                        int rssnr = signal.getRssnr(); // LTE SINR
+                        int rssnr = signal.getRssnr();
+                        int ta = signal.getTimingAdvance();
 
                         sb.append("--- Tower [").append(validCount).append("] (LTE) ---\n");
                         sb.append("Registered: ").append(cell.isRegistered() ? "YES" : "NO").append("\n");
@@ -111,8 +112,8 @@ public class MainActivity extends AppCompatActivity {
                         sb.append("eNB ID: ").append(enbId != -1 ? enbId : "N/A").append(" | Sector: ").append(sectorId != -1 ? sectorId : "N/A").append("\n");
                         sb.append("RSRP: ").append(signal.getRsrp()).append(" dBm\n");
                         sb.append("RSRQ: ").append(signal.getRsrq()).append(" dB\n");
-                        sb.append("SINR: ").append(rssnr != CellInfo.UNAVAILABLE ? rssnr + " dB" : "N/A").append("\n");
-                        sb.append("Timing Advance: ").append(signal.getTimingAdvance()).append("\n\n");
+                        sb.append("SINR: ").append((rssnr != CellInfo.UNAVAILABLE && rssnr != Integer.MAX_VALUE) ? rssnr + " dB" : "N/A").append("\n");
+                        sb.append("Timing Advance: ").append((ta != CellInfo.UNAVAILABLE && ta != Integer.MAX_VALUE && ta != 2147483647) ? ta : "N/A").append("\n\n");
 
                     } else if (cell instanceof CellInfoNr) {
                         validCount++;
@@ -120,13 +121,19 @@ public class MainActivity extends AppCompatActivity {
                         CellIdentityNr identity = (CellIdentityNr) nr.getCellIdentity();
                         CellSignalStrengthNr signal = (CellSignalStrengthNr) nr.getCellSignalStrength();
 
+                        int nrTa = -1;
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                            nrTa = signal.getTimingAdvance();
+                        }
+
                         sb.append("--- Tower [").append(validCount).append("] (5G NR) ---\n");
                         sb.append("Registered: ").append(cell.isRegistered() ? "YES" : "NO").append("\n");
                         sb.append("NR PCI: ").append(identity.getPci()).append(" | ARFCN: ").append(identity.getNrarfcn()).append("\n");
                         sb.append("TAC: ").append(identity.getTac()).append(" | NCI: ").append(identity.getNci()).append("\n");
                         sb.append("SS-RSRP: ").append(signal.getSsRsrp()).append(" dBm\n");
                         sb.append("SS-RSRQ: ").append(signal.getSsRsrq()).append(" dB\n");
-                        sb.append("SS-SINR: ").append(signal.getSsSinr()).append(" dB\n\n");
+                        sb.append("SS-SINR: ").append(signal.getSsSinr()).append(" dB\n");
+                        sb.append("Timing Advance: ").append((nrTa != -1 && nrTa != CellInfo.UNAVAILABLE && nrTa != Integer.MAX_VALUE && nrTa != 2147483647) ? nrTa : "N/A").append("\n\n");
                     }
                 }
                 if (validCount == 0) {
