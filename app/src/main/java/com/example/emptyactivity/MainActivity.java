@@ -86,13 +86,14 @@ public class MainActivity extends AppCompatActivity {
         return totalMeters + " m";
     }
 
+    // NetMonster-style modern vibrant signal background colors with good contrast
     private int getRsrpColor(int rsrp) {
-        if (rsrp == CellInfo.UNAVAILABLE || rsrp == 0) return Color.parseColor("#18181F");
-        if (rsrp >= -80) return Color.parseColor("#1B3B2B"); // Excellent (Dark Emerald)
-        if (rsrp >= -90) return Color.parseColor("#3B3B1B"); // Good (Dark Olive)
-        if (rsrp >= -100) return Color.parseColor("#4D3B14"); // Fair (Dark Amber)
-        if (rsrp >= -110) return Color.parseColor("#4D2614"); // Poor (Dark Orange)
-        return Color.parseColor("#4D1414"); // Bad (Dark Maroon)
+        if (rsrp == CellInfo.UNAVAILABLE || rsrp == 0) return Color.parseColor("#121216");
+        if (rsrp >= -80) return Color.parseColor("#0E3B21"); // Excellent (Vibrant Emerald)
+        if (rsrp >= -90) return Color.parseColor("#343B0E"); // Good (Olive Green)
+        if (rsrp >= -100) return Color.parseColor("#4D350A"); // Fair (Amber)
+        if (rsrp >= -110) return Color.parseColor("#4D1F0A"); // Poor (Orange)
+        return Color.parseColor("#4D0A0A"); // Bad (Red)
     }
 
     private void updateCellMetrics() {
@@ -114,9 +115,9 @@ public class MainActivity extends AppCompatActivity {
         TextView header = new TextView(this);
         header.setText("Cellular Monitor");
         header.setTextColor(Color.WHITE);
-        header.setTextSize(22);
+        header.setTextSize(20);
         header.setTypeface(null, android.graphics.Typeface.BOLD);
-        header.setPadding(0, 0, 0, 24);
+        header.setPadding(4, 0, 0, 16);
         cardsContainer.addView(header);
 
         try {
@@ -125,17 +126,18 @@ public class MainActivity extends AppCompatActivity {
                 TextView empty = new TextView(this);
                 empty.setText("No cell info available. Ensure GPS is ON.");
                 empty.setTextColor(Color.parseColor("#00FF66"));
+                empty.setPadding(4, 0, 0, 0);
                 cardsContainer.addView(empty);
                 return;
             }
 
             for (CellInfo cell : allCells) {
-                if (!cell.isRegistered()) continue;
+                if (!cell.isRegistered()) continue; // Show active serving cells for SIM 1 & SIM 2
 
                 String cellStr = cell.toString();
                 LinearLayout card = new LinearLayout(this);
                 card.setOrientation(LinearLayout.VERTICAL);
-                card.setPadding(24, 24, 24, 24);
+                card.setPadding(24, 20, 24, 20);
 
                 LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT,
@@ -150,12 +152,12 @@ public class MainActivity extends AppCompatActivity {
                 if (cell instanceof CellInfoLte) {
                     CellInfoLte lte = (CellInfoLte) cell;
                     CellIdentityLte identity = lte.getCellIdentity();
-                    int ci = identity.getCi();
-                    if (ci == 268435455 || ci == -1) continue;
+                    long ci = identity.getCi();
+                    if (ci == 268435455L || ci == -1) continue;
 
                     CellSignalStrengthLte signal = lte.getCellSignalStrength();
-                    int enbId = ci >> 8;
-                    int sectorId = ci & 0xFF;
+                    long enbId = ci >> 8;
+                    long sectorId = ci & 0xFF;
                     int rsrp = signal.getRsrp();
                     int rsrq = signal.getRsrq();
                     int rssnr = signal.getRssnr();
@@ -163,18 +165,23 @@ public class MainActivity extends AppCompatActivity {
 
                     card.setBackgroundColor(getRsrpColor(rsrp));
 
-                    card.addView(createRow(operatorName.toUpperCase(), identity.getMcc() + " " + identity.getMnc(), true));
-                    card.addView(createRow("4G | Band " + identity.getBands(), "PCI: " + identity.getPci(), false));
-                    card.addView(createRow("CI", String.valueOf(ci), false));
-                    card.addView(createRow("eNB:CI", enbId + ":" + sectorId, false));
-                    card.addView(createRow("TAC", String.valueOf(identity.getTac()), false));
-                    card.addView(createRow("PCI", String.valueOf(identity.getPci()), false));
-                    card.addView(createRow("ARFCN", String.valueOf(identity.getEarfcn()), false));
-                    card.addView(createRow("S-RSRP", rsrp + " dBm", false));
-                    card.addView(createRow("S-RSRQ", rsrq + " dB", false));
-                    card.addView(createRow("S-SNR", (rssnr != CellInfo.UNAVAILABLE ? rssnr + " dB" : "N/A"), false));
-                    card.addView(createRow("TA", ta + " | " + formatDistance(ta, false), false));
+                    // Top Row: Operator Name & MCC MNC
+                    card.addView(createTopRow(operatorName.toUpperCase(), identity.getMcc() + " " + identity.getMnc()));
+                    // Tech Badge Row
+                    card.addView(createBadgeRow("4G | LTE Band " + identity.getBands()));
 
+                    // 2-Column Grid Layout
+                    LinearLayout grid = new LinearLayout(this);
+                    grid.setOrientation(LinearLayout.VERTICAL);
+                    grid.setPadding(0, 6, 0, 0);
+
+                    grid.addView(createPairRow("CI", String.valueOf(ci), "ARFCN", String.valueOf(identity.getEarfcn())));
+                    grid.addView(createPairRow("eNB:CI", enbId + ":" + sectorId, "S-RSRP", rsrp + " dBm"));
+                    grid.addView(createPairRow("TAC", String.valueOf(identity.getTac()), "S-RSRQ", rsrq + " dB"));
+                    grid.addView(createPairRow("PCI", String.valueOf(identity.getPci()), "S-SNR", (rssnr != CellInfo.UNAVAILABLE ? rssnr + " dB" : "N/A")));
+                    grid.addView(createPairRow("TA", ta + " | " + formatDistance(ta, false), "BW", "10 MHz"));
+
+                    card.addView(grid);
                     cardsContainer.addView(card);
 
                 } else if (cell instanceof CellInfoNr) {
@@ -182,55 +189,120 @@ public class MainActivity extends AppCompatActivity {
                     CellIdentityNr identity = (CellIdentityNr) nr.getCellIdentity();
                     CellSignalStrengthNr signal = (CellSignalStrengthNr) nr.getCellSignalStrength();
 
+                    long nci = identity.getNci();
+                    long gnbId = nci >> 12;
+                    long nrSector = nci & 0xFFF;
+
                     int ssRsrp = signal.getSsRsrp();
                     int ssRsrq = signal.getSsRsrq();
                     int ssSinr = signal.getSsSinr();
                     int ta = extractTimingAdvance(cellStr);
 
                     int arfcn = identity.getNrarfcn();
+                    // High-band check for n78, n77, n41, n40
                     boolean isHighBand = (arfcn >= 620000 && arfcn <= 680000) || 
                                          (arfcn >= 499200 && arfcn <= 537999);
 
                     card.setBackgroundColor(getRsrpColor(ssRsrp));
 
-                    card.addView(createRow(operatorName.toUpperCase(), identity.getMccString() + " " + identity.getMncString(), true));
-                    card.addView(createRow("5G | NR ARFCN " + arfcn, "PCI: " + identity.getPci(), false));
-                    card.addView(createRow("NCI", String.valueOf(identity.getNci()), false));
-                    card.addView(createRow("TAC", String.valueOf(identity.getTac()), false));
-                    card.addView(createRow("PCI", String.valueOf(identity.getPci()), false));
-                    card.addView(createRow("ARFCN", String.valueOf(arfcn), false));
-                    card.addView(createRow("S-RSRP", ssRsrp + " dBm", false));
-                    card.addView(createRow("S-RSRQ", ssRsrq + " dB", false));
-                    card.addView(createRow("S-SNR", ssSinr + " dB", false));
-                    card.addView(createRow("TA", ta + " | " + formatDistance(ta, isHighBand), false));
+                    card.addView(createTopRow(operatorName.toUpperCase(), identity.getMccString() + " " + identity.getMncString()));
+                    card.addView(createBadgeRow("5G | SA ARFCN " + arfcn));
 
+                    LinearLayout grid = new LinearLayout(this);
+                    grid.setOrientation(LinearLayout.VERTICAL);
+                    grid.setPadding(0, 6, 0, 0);
+
+                    grid.addView(createPairRow("NCI", String.valueOf(nci), "ARFCN", String.valueOf(arfcn)));
+                    grid.addView(createPairRow("gNB:CI", gnbId + ":" + nrSector, "S-RSRP", ssRsrp + " dBm"));
+                    grid.addView(createPairRow("TAC", String.valueOf(identity.getTac()), "S-RSRQ", ssRsrq + " dB"));
+                    grid.addView(createPairRow("PCI", String.valueOf(identity.getPci()), "S-SNR", ssSinr + " dB"));
+                    grid.addView(createPairRow("TA", ta + " | " + formatDistance(ta, isHighBand), "BW", "100 MHz"));
+
+                    card.addView(grid);
                     cardsContainer.addView(card);
                 }
             }
         } catch (SecurityException ignored) {}
     }
 
-    private LinearLayout createRow(String label, String value, boolean isHeader) {
+    private LinearLayout createTopRow(String leftText, String rightText) {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setPadding(0, 4, 0, 4);
 
-        TextView lbl = new TextView(this);
-        lbl.setText(label);
-        lbl.setTextColor(isHeader ? Color.WHITE : Color.parseColor("#9AA0A6"));
-        lbl.setTextSize(isHeader ? 18 : 15);
-        lbl.setTypeface(null, isHeader ? android.graphics.Typeface.BOLD : android.graphics.Typeface.NORMAL);
-        lbl.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+        TextView left = new TextView(this);
+        left.setText(leftText);
+        left.setTextColor(Color.WHITE);
+        left.setTextSize(19);
+        left.setTypeface(null, android.graphics.Typeface.BOLD);
+        left.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
 
-        TextView val = new TextView(this);
-        val.setText(value);
-        val.setTextColor(Color.WHITE);
-        val.setTextSize(isHeader ? 16 : 15);
-        val.setGravity(Gravity.END);
-        val.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+        TextView right = new TextView(this);
+        right.setText(rightText);
+        right.setTextColor(Color.parseColor("#B0BEC5"));
+        right.setTextSize(15);
+        right.setGravity(Gravity.END);
+        right.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
 
-        row.addView(lbl);
-        row.addView(val);
+        row.addView(left);
+        row.addView(right);
+        return row;
+    }
+
+    private TextView createBadgeRow(String badgeText) {
+        TextView badge = new TextView(this);
+        badge.setText(badgeText);
+        badge.setTextColor(Color.parseColor("#00FF66"));
+        badge.setTextSize(14);
+        badge.setTypeface(null, android.graphics.Typeface.BOLD);
+        badge.setPadding(0, 2, 0, 6);
+        return badge;
+    }
+
+    private LinearLayout createPairRow(String l1, String v1, String l2, String v2) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setPadding(0, 3, 0, 3);
+
+        // Left Column
+        LinearLayout p1 = new LinearLayout(this);
+        p1.setOrientation(LinearLayout.HORIZONTAL);
+        p1.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+
+        TextView lbl1 = new TextView(this);
+        lbl1.setText(l1 + "   ");
+        lbl1.setTextColor(Color.parseColor("#9AA0A6"));
+        lbl1.setTextSize(14);
+
+        TextView val1 = new TextView(this);
+        val1.setText(v1);
+        val1.setTextColor(Color.WHITE);
+        val1.setTextSize(14);
+        val1.setTypeface(null, android.graphics.Typeface.BOLD);
+
+        p1.addView(lbl1);
+        p1.addView(val1);
+
+        // Right Column
+        LinearLayout p2 = new LinearLayout(this);
+        p2.setOrientation(LinearLayout.HORIZONTAL);
+        p2.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.0f));
+
+        TextView lbl2 = new TextView(this);
+        lbl2.setText(l2 + "   ");
+        lbl2.setTextColor(Color.parseColor("#9AA0A6"));
+        lbl2.setTextSize(14);
+
+        TextView val2 = new TextView(this);
+        val2.setText(v2);
+        val2.setTextColor(Color.WHITE);
+        val2.setTextSize(14);
+        val2.setTypeface(null, android.graphics.Typeface.BOLD);
+
+        p2.addView(lbl2);
+        p2.addView(val2);
+
+        row.addView(p1);
+        row.addView(p2);
         return row;
     }
 }
