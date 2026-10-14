@@ -116,18 +116,24 @@ public class MainActivity extends AppCompatActivity {
                         sb.append("Timing Advance: ").append((ta != CellInfo.UNAVAILABLE && ta != Integer.MAX_VALUE && ta != 2147483647) ? ta : "N/A").append("\n\n");
 
                     } else if (cell instanceof CellInfoNr) {
-                        validCount++;
                         CellInfoNr nr = (CellInfoNr) cell;
                         CellIdentityNr identity = (CellIdentityNr) nr.getCellIdentity();
                         CellSignalStrengthNr signal = (CellSignalStrengthNr) nr.getCellSignalStrength();
 
-                        sb.append("--- Tower [").append(validCount).append("] (5G NR) ---\n");
+                        int nrTa = CellInfo.UNAVAILABLE;
+                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                            nrTa = signal.getTimingAdvance();
+                        }
+
+                        sb.append("--- Tower [").append(validCount + 1).append("] (5G NR) ---\n");
+                        validCount++;
                         sb.append("Registered: ").append(cell.isRegistered() ? "YES" : "NO").append("\n");
                         sb.append("NR PCI: ").append(identity.getPci()).append(" | ARFCN: ").append(identity.getNrarfcn()).append("\n");
                         sb.append("TAC: ").append(identity.getTac()).append(" | NCI: ").append(identity.getNci()).append("\n");
                         sb.append("SS-RSRP: ").append(signal.getSsRsrp()).append(" dBm\n");
                         sb.append("SS-RSRQ: ").append(signal.getSsRsrq()).append(" dB\n");
-                        sb.append("SS-SINR: ").append(signal.getSsSinr()).append(" dB\n\n");
+                        sb.append("SS-SINR: ").append(signal.getSsSinr()).append(" dB\n");
+                        sb.append("Timing Advance: ").append((nrTa != CellInfo.UNAVAILABLE && nrTa != Integer.MAX_VALUE && nrTa != 2147483647) ? nrTa : "N/A").append("\n\n");
                     }
                 }
                 if (validCount == 0) {
