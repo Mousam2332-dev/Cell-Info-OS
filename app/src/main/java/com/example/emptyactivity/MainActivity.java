@@ -41,7 +41,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void run() {
                 updateCellMetrics();
-                handler.postDelayed(this, 1000); // True live refresh every 1 second
+                handler.postDelayed(this, 1000); // Live refresh every 1 second
             }
         };
     }
@@ -121,19 +121,13 @@ public class MainActivity extends AppCompatActivity {
                         CellIdentityNr identity = (CellIdentityNr) nr.getCellIdentity();
                         CellSignalStrengthNr signal = (CellSignalStrengthNr) nr.getCellSignalStrength();
 
-                        int nrTa = -1;
-                        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-                            nrTa = signal.getTimingAdvance();
-                        }
-
                         sb.append("--- Tower [").append(validCount).append("] (5G NR) ---\n");
                         sb.append("Registered: ").append(cell.isRegistered() ? "YES" : "NO").append("\n");
                         sb.append("NR PCI: ").append(identity.getPci()).append(" | ARFCN: ").append(identity.getNrarfcn()).append("\n");
                         sb.append("TAC: ").append(identity.getTac()).append(" | NCI: ").append(identity.getNci()).append("\n");
                         sb.append("SS-RSRP: ").append(signal.getSsRsrp()).append(" dBm\n");
                         sb.append("SS-RSRQ: ").append(signal.getSsRsrq()).append(" dB\n");
-                        sb.append("SS-SINR: ").append(signal.getSsSinr()).append(" dB\n");
-                        sb.append("Timing Advance: ").append((nrTa != -1 && nrTa != CellInfo.UNAVAILABLE && nrTa != Integer.MAX_VALUE && nrTa != 2147483647) ? nrTa : "N/A").append("\n\n");
+                        sb.append("SS-SINR: ").append(signal.getSsSinr()).append(" dB\n\n");
                     }
                 }
                 if (validCount == 0) {
