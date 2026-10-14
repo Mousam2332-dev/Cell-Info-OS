@@ -111,7 +111,6 @@ public class MainActivity extends AppCompatActivity {
 
         cardsContainer.removeAllViews();
 
-        // Add Header title back
         TextView header = new TextView(this);
         header.setText("Cellular Monitor");
         header.setTextColor(Color.WHITE);
@@ -131,7 +130,7 @@ public class MainActivity extends AppCompatActivity {
             }
 
             for (CellInfo cell : allCells) {
-                if (!cell.isRegistered()) continue; // Only show registered serving cells for SIM 1 & 2
+                if (!cell.isRegistered()) continue;
 
                 String cellStr = cell.toString();
                 LinearLayout card = new LinearLayout(this);
@@ -188,10 +187,9 @@ public class MainActivity extends AppCompatActivity {
                     int ssSinr = signal.getSsSinr();
                     int ta = extractTimingAdvance(cellStr);
 
-                    // Check if high frequency 5G band (n78, n77, n41, n40)
                     int arfcn = identity.getNrarfcn();
-                    boolean isHighBand = (arfcn >= 620000 && arfcn <= 680000) || // n78
-                                         (arfcn >= 499200 && arfcn <= 537999);    // n41
+                    boolean isHighBand = (arfcn >= 620000 && arfcn <= 680000) || 
+                                         (arfcn >= 499200 && arfcn <= 537999);
 
                     card.setBackgroundColor(getRsrpColor(ssRsrp));
 
