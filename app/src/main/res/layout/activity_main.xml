@@ -1,31 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000"
+    android:padding="12dp">
 
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-        xmlns:app="http://schemas.android.com/apk/res-auto"
-        xmlns:tools="http://schemas.android.com/tools"
+    <LinearLayout
+        android:id="@+id/cards_container"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
         android:orientation="vertical">
 
-    <TextView
+        <TextView
             android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:background="@color/window_background"
-            android:elevation="1dp"
-            android:gravity="center"
-            android:text="@string/app_name"
+            android:layout_height="wrap_content"
+            android:text="Cellular Monitor"
+            android:textColor="#FFFFFF"
             android:textSize="20sp"
             android:textStyle="bold"
-            tools:ignore="UnusedAttribute" />
+            android:layout_marginBottom="12dp" />
 
-    <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/recycler"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:clipToPadding="false"
-            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager">
-
-    </androidx.recyclerview.widget.RecyclerView>
-
-</LinearLayout>
+    </LinearLayout>
+</ScrollView>
