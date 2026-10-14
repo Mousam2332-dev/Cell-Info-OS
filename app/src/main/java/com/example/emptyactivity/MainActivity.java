@@ -49,19 +49,29 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        handler.post(refreshRunnable); // Starts the refresh loop when app opens/resumes
+        handler.post(refreshRunnable);
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        handler.removeCallbacks(refreshRunnable); // Stops loop when app is minimized to save battery
+        handler.removeCallbacks(refreshRunnable);
     }
 
     private void updateCellMetrics() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             infoTextView.setText("Permission required for cell telemetry.\nPlease grant Location permission.");
             return;
+        }
+
+        // Force modem to pull fresh cell telemetry on Android 10+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            try {
+                telephonyManager.requestCellInfoUpdate(getMainExecutor(), new TelephonyManager.CellInfoCallback() {
+                    @Override
+                    public void onCellInfo(List<CellInfo> cellInfo) {}
+                });
+            } catch (Exception ignored) {}
         }
 
         StringBuilder sb = new StringBuilder();
@@ -91,6 +101,7 @@ public class MainActivity extends AppCompatActivity {
 
                         int enbId = (ci != CellInfo.UNAVAILABLE) ? (ci >> 8) : -1;
                         int sectorId = (ci != CellInfo.UNAVAILABLE) ? (ci & 0xFF) : -1;
+                        int rssnr = signal.getRssnr(); // LTE SINR
 
                         sb.append("--- Tower [").append(validCount).append("] (LTE) ---\n");
                         sb.append("Registered: ").append(cell.isRegistered() ? "YES" : "NO").append("\n");
@@ -100,6 +111,7 @@ public class MainActivity extends AppCompatActivity {
                         sb.append("eNB ID: ").append(enbId != -1 ? enbId : "N/A").append(" | Sector: ").append(sectorId != -1 ? sectorId : "N/A").append("\n");
                         sb.append("RSRP: ").append(signal.getRsrp()).append(" dBm\n");
                         sb.append("RSRQ: ").append(signal.getRsrq()).append(" dB\n");
+                        sb.append("SINR: ").append(rssnr != CellInfo.UNAVAILABLE ? rssnr + " dB" : "N/A").append("\n");
                         sb.append("Timing Advance: ").append(signal.getTimingAdvance()).append("\n\n");
 
                     } else if (cell instanceof CellInfoNr) {
@@ -113,7 +125,8 @@ public class MainActivity extends AppCompatActivity {
                         sb.append("NR PCI: ").append(identity.getPci()).append(" | ARFCN: ").append(identity.getNrarfcn()).append("\n");
                         sb.append("TAC: ").append(identity.getTac()).append(" | NCI: ").append(identity.getNci()).append("\n");
                         sb.append("SS-RSRP: ").append(signal.getSsRsrp()).append(" dBm\n");
-                        sb.append("SS-RSRQ: ").append(signal.getSsRsrq()).append(" dB\n\n");
+                        sb.append("SS-RSRQ: ").append(signal.getSsRsrq()).append(" dB\n");
+                        sb.append("SS-SINR: ").append(signal.getSsSinr()).append(" dB\n\n");
                     }
                 }
                 if (validCount == 0) {
