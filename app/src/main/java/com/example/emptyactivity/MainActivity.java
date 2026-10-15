@@ -3,7 +3,7 @@ package com.example.emptyactivity;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.graphics.*;
-import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.*;
 import android.os.*;
 import android.telephony.*;
 import android.util.TypedValue;
@@ -33,8 +33,25 @@ public class MainActivity extends AppCompatActivity {
         ScrollView sv = new ScrollView(this);
         sv.setBackgroundColor(0xFF0E1013);
         sv.setFillViewport(true);
+
+        int sbH = dp(38);
+        int resId = getResources().getIdentifier("status_bar_height", "dimen", "android");
+        if (resId > 0) sbH = getResources().getDimensionPixelSize(resId);
+
         root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(0, sbH + dp(6), 0, dp(24));
+
+        sv.setOnApplyWindowInsetsListener(new View.OnApplyWindowInsetsListener() {
+            @Override
+            public WindowInsets onApplyWindowInsets(View v, WindowInsets insets) {
+                int top = insets.getSystemWindowInsetTop();
+                int bot = insets.getSystemWindowInsetBottom();
+                root.setPadding(0, (top > 0 ? top : dp(38)) + dp(6), 0, (bot > 0 ? bot : dp(16)) + dp(12));
+                return insets;
+            }
+        });
+
         sv.addView(root);
         setContentView(sv);
 
@@ -174,7 +191,7 @@ public class MainActivity extends AppCompatActivity {
                     if (ta >= 0 && ta < 1282) card.addView(gridRow("TA", taText(ta, false), "", ""));
                     card.addView(footerView(op.charAt(0) + " | " + fq));
                     root.addView(card);
-                    root.addView(div(2, 0xFF22262A));
+                    root.addView(div(2, 0xFF262A2E));
                 } else if (c instanceof CellInfoNr) {
                     CellIdentityNr id = (CellIdentityNr) ((CellInfoNr) c).getCellIdentity();
                     CellSignalStrengthNr sg = (CellSignalStrengthNr) ((CellInfoNr) c).getCellSignalStrength();
@@ -195,7 +212,7 @@ public class MainActivity extends AppCompatActivity {
                     card.addView(gridRow("PCI", String.valueOf(id.getPci()), "S-SNR", sinr + " dB"));
                     card.addView(gridRow("BW", bw, "TA", taText(ta, high)));
                     root.addView(card);
-                    root.addView(div(2, 0xFF22262A));
+                    root.addView(div(2, 0xFF262A2E));
                 }
             }
             for (CellInfo c : all) {
@@ -225,24 +242,45 @@ public class MainActivity extends AppCompatActivity {
     private LinearLayout cardView(int rsrp, String op, String mccmnc, String sub) {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(18), dp(18), dp(18), dp(16));
-        int glow = rsrp >= -85 ? 0x552E6B3E : rsrp >= -95 ? 0x554A6321 : rsrp >= -105 ? 0x555A4D1E : rsrp >= -115 ? 0x554E3A1E : 0x55542424;
-        card.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR, new int[]{glow, 0xFF16191D, 0xFF101215}));
+        card.setPadding(dp(18), dp(20), dp(18), dp(16));
+
+        int glowCore, glowMid, barCol;
+        if (rsrp >= -85) {
+            glowCore = 0xAA3B7A3E; glowMid = 0x44254D28; barCol = 0xCC55A659; // Strong Green
+        } else if (rsrp >= -95) {
+            glowCore = 0xAA587324; glowMid = 0x44374717; barCol = 0xCC82A636; // Good Lime-Olive
+        } else if (rsrp >= -105) {
+            glowCore = 0xAA706122; glowMid = 0x44453B15; barCol = 0xCCA89232; // Fair Golden-Olive
+        } else if (rsrp >= -115) {
+            glowCore = 0xAA634E22; glowMid = 0x443D3015; barCol = 0xCC997833; // Weak Warm Amber-Olive
+        } else {
+            glowCore = 0xAA663326; glowMid = 0x44402018; barCol = 0xCC994D39; // Very Weak Rust-Amber
+        }
+
+        GradientDrawable base = new GradientDrawable();
+        base.setColor(0xFF101215);
+
+        GradientDrawable radial = new GradientDrawable();
+        radial.setGradientType(GradientDrawable.RADIAL_GRADIENT);
+        radial.setGradientCenter(0.18f, 0.22f);
+        radial.setGradientRadius(dp(290));
+        radial.setColors(new int[]{glowCore, glowMid, 0x00101215});
+
+        card.setBackground(new LayerDrawable(new Drawable[]{base, radial}));
 
         LinearLayout top = new LinearLayout(this);
         top.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout left = new LinearLayout(this);
         left.setOrientation(LinearLayout.VERTICAL);
         left.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1f));
-        TextView tvOp = tv(op, 19, 0xFFFFFFFF, true);
-        left.addView(tvOp);
+        left.addView(tv(op, 19, 0xFFFFFFFF, true));
 
         View bar = new View(this);
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(0x88A67C2E);
+        bg.setColor(barCol);
         bg.setCornerRadius(dp(4));
         bar.setBackground(bg);
-        LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(dp(52), dp(4));
+        LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(dp(56), dp(5));
         bp.setMargins(0, dp(2), 0, 0);
         bar.setLayoutParams(bp);
         left.addView(bar);
@@ -324,3 +362,4 @@ public class MainActivity extends AppCompatActivity {
     }
 }
 // END OF FILE
+                     
