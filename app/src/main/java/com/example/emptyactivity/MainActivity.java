@@ -1,161 +1,129 @@
 package com.example.emptyactivity;
 
 import android.Manifest;
-import android.content.Context;
 import android.content.pm.PackageManager;
-import android.graphics.Color;
-import android.graphics.Typeface;
+import android.graphics.*;
 import android.graphics.drawable.GradientDrawable;
-import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
+import android.os.*;
 import android.telephony.*;
 import android.util.TypedValue;
-import android.view.Gravity;
-import android.view.View;
-import android.widget.LinearLayout;
-import android.widget.TextView;
+import android.view.*;
+import android.widget.*;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.*;
+import java.util.regex.*;
 
 public class MainActivity extends AppCompatActivity {
-    private TelephonyManager telephonyManager;
-    private SubscriptionManager subscriptionManager;
-    private LinearLayout mainContainer;
-    private final Handler handler = new Handler(Looper.getMainLooper());
-    private Runnable refreshRunnable;
+    private TelephonyManager tm;
+    private SubscriptionManager sm;
+    private LinearLayout root;
+    private final Handler h = new Handler(Looper.getMainLooper());
+    private final Runnable task = new Runnable() {
+        @Override public void run() { update(); h.postDelayed(this, 1000); }
+    };
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+    protected void onCreate(Bundle b) {
+        super.onCreate(b);
         if (getSupportActionBar() != null) getSupportActionBar().hide();
-        getWindow().setStatusBarColor(Color.parseColor("#0E1013"));
-        getWindow().setNavigationBarColor(Color.parseColor("#0E1013"));
-        setContentView(R.layout.activity_main);
+        getWindow().setStatusBarColor(0xFF0E1013);
+        getWindow().setNavigationBarColor(0xFF0E1013);
 
-        mainContainer = findViewById(R.id.cards_container);
-        telephonyManager = (TelephonyManager) getSystemService(Context.TELEPHONY_SERVICE);
-        subscriptionManager = (SubscriptionManager) getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE);
+        ScrollView sv = new ScrollView(this);
+        sv.setBackgroundColor(0xFF0E1013);
+        sv.setFillViewport(true);
+        root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        sv.addView(root);
+        setContentView(sv);
 
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED ||
-            ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+        tm = (TelephonyManager) getSystemService(TELEPHONY_SERVICE);
+        sm = (SubscriptionManager) getSystemService(TELEPHONY_SUBSCRIPTION_SERVICE);
+
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != 0 ||
+            ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) != 0) {
             ActivityCompat.requestPermissions(this, new String[]{
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.READ_PHONE_STATE
-            }, 101);
+                Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.READ_PHONE_STATE
+            }, 1);
         }
-
-        refreshRunnable = new Runnable() {
-            @Override
-            public void run() {
-                updateCellMetrics();
-                handler.postDelayed(this, 1000);
-            }
-        };
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-        handler.post(refreshRunnable);
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        handler.removeCallbacks(refreshRunnable);
-    }
+    @Override protected void onResume() { super.onResume(); h.post(task); }
+    @Override protected void onPause() { super.onPause(); h.removeCallbacks(task); }
 
     private int dp(int v) {
         return (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v, getResources().getDisplayMetrics());
     }
 
-    private int extractInt(String src, String regex, int def) {
+    private int num(String s, String rx, int def) {
         try {
-            Matcher m = Pattern.compile(regex).matcher(src);
+            Matcher m = Pattern.compile(rx).matcher(s);
             if (m.find()) {
                 int v = Integer.parseInt(m.group(1));
-                if (v != Integer.MAX_VALUE && v != 2147483647 && v != -2147483648) return v;
+                if (v != Integer.MAX_VALUE && v != -2147483648) return v;
             }
         } catch (Exception ignored) {}
         return def;
     }
 
-    private String getOperatorName(String mcc, String mnc, String rawAlpha) {
+    private String opName(String mcc, String mnc, CharSequence alpha) {
         if ("404".equals(mcc) && "74".equals(mnc)) return "BSNL";
         if ("405".equals(mcc) && "840".equals(mnc)) return "JIO";
-        if (rawAlpha != null && !rawAlpha.isEmpty() && !"null".equals(rawAlpha)) {
-            String up = rawAlpha.toUpperCase();
-            if (up.contains("JIO")) return "JIO";
-            if (up.contains("BSNL") || up.contains("CELLONE")) return "BSNL";
-            if (up.contains("VI") || up.contains("VODAFONE")) return "VI";
-            if (up.contains("AIRTEL")) return "AIRTEL";
-            return up;
+        String a = alpha != null ? alpha.toString().toUpperCase() : "";
+        if (a.contains("JIO")) return "JIO";
+        if (a.contains("BSNL") || a.contains("CELLONE")) return "BSNL";
+        if (a.contains("VI") || a.contains("VODAFONE")) return "VI";
+        if (a.contains("AIRTEL")) return "AIRTEL";
+        return a.isEmpty() ? "SIM" : a;
+    }
+
+    private String freqName(int ch, boolean nr) {
+        if (nr) {
+            if (ch >= 151600 && ch <= 160600) return "700";
+            if (ch >= 620000 && ch <= 653333) return "3500";
+            if (ch > 653333 && ch <= 680000) return "3700";
+            if (ch >= 499200 && ch <= 537999) return "2500";
+            if (ch >= 460000 && ch <= 480000) return "2300";
+            if (ch >= 422000 && ch <= 434000) return "2100";
+            if (ch >= 361000 && ch <= 376000) return "1800";
+        } else {
+            if (ch >= 9210 && ch <= 9659) return "700";
+            if (ch >= 0 && ch <= 599) return "2100";
+            if (ch >= 1200 && ch <= 1949) return "1800";
+            if (ch >= 2400 && ch <= 2649) return "850";
+            if (ch >= 3450 && ch <= 3799) return "900";
+            if (ch >= 38650 && ch <= 39649) return "2300";
+            if (ch >= 39650 && ch <= 41589) return "2500";
         }
-        return "SIM";
+        return String.valueOf(ch);
     }
 
-    private String getLteFreq(int earfcn, int band) {
-        if (earfcn >= 9210 && earfcn <= 9659) return "700";
-        if (earfcn >= 0 && earfcn <= 599) return "2100";
-        if (earfcn >= 1200 && earfcn <= 1949) return "1800";
-        if (earfcn >= 2400 && earfcn <= 2649) return "850";
-        if (earfcn >= 3450 && earfcn <= 3799) return "900";
-        if (earfcn >= 38650 && earfcn <= 39649) return "2300";
-        if (earfcn >= 39650 && earfcn <= 41589) return "2500";
-        return band > 0 ? "B" + band : String.valueOf(earfcn);
-    }
-
-    private String getNrFreq(int arfcn, int band) {
-        if (arfcn >= 151600 && arfcn <= 160600) return "700";
-        if (arfcn >= 620000 && arfcn <= 653333) return "3500";
-        if (arfcn > 653333 && arfcn <= 680000) return "3700";
-        if (arfcn >= 499200 && arfcn <= 537999) return "2500";
-        if (arfcn >= 460000 && arfcn <= 480000) return "2300";
-        if (arfcn >= 422000 && arfcn <= 434000) return "2100";
-        if (arfcn >= 361000 && arfcn <= 376000) return "1800";
-        return band > 0 ? "n" + band : String.valueOf(arfcn);
-    }
-
-    private boolean is5gHighBand(int arfcn, int band) {
-        return band == 78 || band == 77 || band == 41 || band == 40 || (arfcn >= 460000 && arfcn <= 680000);
-    }
-
-    private String formatTa(int ta, boolean highBand5G) {
+    private String taText(int ta, boolean high5G) {
         if (ta < 0 || ta >= 1282) return "N/A";
-        double step = highBand5G ? 39.0625 : 78.125;
-        long m = Math.round(ta * step);
-        return m >= 1000 ? String.format("%.2f km", m / 1000.0) : (m + " m");
+        long m = Math.round(ta * (high5G ? 39.0625 : 78.125));
+        return ta + "  |  " + (m >= 1000 ? String.format(Locale.US, "%.2f km", m / 1000.0) : m + " m");
     }
 
-    private String getBandwidth(String mcc, String mnc, boolean is5G, int fallbackKhz) {
+    private String bwText(String mnc, boolean nr, int khz, int ch) {
         try {
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED && subscriptionManager != null) {
-                List<SubscriptionInfo> subs = subscriptionManager.getActiveSubscriptionInfoList();
-                if (subs != null && mnc != null) {
-                    int targetMnc = Integer.parseInt(mnc);
-                    for (SubscriptionInfo sub : subs) {
-                        if (sub.getMnc() == targetMnc) {
-                            ServiceState ss = telephonyManager.createForSubscriptionId(sub.getSubscriptionId()).getServiceState();
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) == 0 && sm != null && mnc != null) {
+                int target = Integer.parseInt(mnc);
+                List<SubscriptionInfo> subs = sm.getActiveSubscriptionInfoList();
+                if (subs != null) {
+                    for (SubscriptionInfo s : subs) {
+                        if (s.getMnc() == target) {
+                            ServiceState ss = tm.createForSubscriptionId(s.getSubscriptionId()).getServiceState();
                             if (ss != null) {
                                 Matcher m = Pattern.compile("mCellBandwidths=\\[([0-9,\\s]+)\\]").matcher(ss.toString());
                                 if (m.find()) {
-                                    String[] parts = m.group(1).trim().split("\\s*,\\s*");
-                                    StringBuilder bw = new StringBuilder();
-                                    for (String p : parts) {
-                                        if (!p.isEmpty()) {
-                                            int mhz = Integer.parseInt(p) / 1000;
-                                            if (mhz > 0) {
-                                                if (bw.length() > 0) bw.append(" + ");
-                                                bw.append(mhz);
-                                            }
-                                        }
+                                    String[] p = m.group(1).trim().split("\\s*,\\s*");
+                                    StringBuilder sb = new StringBuilder();
+                                    for (String x : p) {
+                                        int v = Integer.parseInt(x) / 1000;
+                                        if (v > 0) { if (sb.length() > 0) sb.append(" + "); sb.append(v); }
                                     }
-                                    if (bw.length() > 0) return bw.toString() + " MHz";
+                                    if (sb.length() > 0) return sb + " MHz";
                                 }
                             }
                         }
@@ -163,189 +131,115 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         } catch (Exception ignored) {}
-        if (fallbackKhz > 0 && fallbackKhz < 1000000) return (fallbackKhz / 1000) + " MHz";
-        return is5G ? "100 MHz" : "10 MHz";
+        if (khz > 0 && khz < 1000000) return (khz / 1000) + " MHz";
+        return (nr && ch >= 620000) ? "100 MHz" : "10 MHz";
     }
 
-    private GradientDrawable createCardBg(int rsrp) {
-        int glow;
-        if (rsrp >= -85) glow = Color.parseColor("#552E6B3E");
-        else if (rsrp >= -95) glow = Color.parseColor("#554A6321");
-        else if (rsrp >= -105) glow = Color.parseColor("#555A4D1E");
-        else if (rsrp >= -115) glow = Color.parseColor("#554E3A1E");
-        else glow = Color.parseColor("#55542424");
-
-        return new GradientDrawable(
-            GradientDrawable.Orientation.TL_BR,
-            new int[]{glow, Color.parseColor("#16191D"), Color.parseColor("#101215")}
-        );
-    }
-
-    private void updateCellMetrics() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return;
-
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+    private void update() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != 0) return;
+        if (Build.VERSION.SDK_INT >= 29) {
             try {
-                telephonyManager.requestCellInfoUpdate(getMainExecutor(), new TelephonyManager.CellInfoCallback() {
-                    @Override
-                    public void onCellInfo(List<CellInfo> cellInfo) {}
+                tm.requestCellInfoUpdate(getMainExecutor(), new TelephonyManager.CellInfoCallback() {
+                    @Override public void onCellInfo(List<CellInfo> list) {}
                 });
             } catch (Exception ignored) {}
         }
-
-        mainContainer.removeAllViews();
-
+        root.removeAllViews();
         try {
-            List<CellInfo> allCells = telephonyManager.getAllCellInfo();
-            if (allCells == null || allCells.isEmpty()) return;
-
-            List<CellInfo> serving = new ArrayList<>();
-            List<CellInfo> neighbors = new ArrayList<>();
-            for (CellInfo c : allCells) {
-                if (c.isRegistered()) serving.add(c);
-                else neighbors.add(c);
-            }
-
-            for (CellInfo cell : serving) {
-                String raw = cell.toString();
-                if (cell instanceof CellInfoLte) {
-                    CellInfoLte lte = (CellInfoLte) cell;
-                    CellIdentityLte id = lte.getCellIdentity();
-                    CellSignalStrengthLte sig = lte.getCellSignalStrength();
-
+            List<CellInfo> all = tm.getAllCellInfo();
+            if (all == null) return;
+            for (CellInfo c : all) {
+                if (!c.isRegistered()) continue;
+                String raw = c.toString();
+                if (c instanceof CellInfoLte) {
+                    CellIdentityLte id = ((CellInfoLte) c).getCellIdentity();
+                    CellSignalStrengthLte sg = ((CellInfoLte) c).getCellSignalStrength();
                     int ci = id.getCi();
-                    if (ci == 268435455 || ci == -1 || ci == Integer.MAX_VALUE) continue;
+                    if (ci == Integer.MAX_VALUE || ci == 268435455 || ci < 0) continue;
+                    String mcc = id.getMccString(), mnc = id.getMncString();
+                    String op = opName(mcc, mnc, id.getOperatorAlphaLong());
+                    String fq = freqName(id.getEarfcn(), false);
+                    String bw = bwText(mnc, false, id.getBandwidth(), id.getEarfcn());
+                    int rsrp = sg.getRsrp(), rsrq = sg.getRsrq();
+                    int rssi = num(raw, "rssi=(-?\\d+)", -105);
+                    int snr = num(raw, "rssnr=(-?\\d+)", sg.getRssnr());
+                    int ta = num(raw, "ta=(-?\\d+)", sg.getTimingAdvance());
 
-                    int enb = ci >> 8;
-                    int cid = ci & 0xFF;
-                    int earfcn = id.getEarfcn();
-                    int band = (id.getBands() != null && id.getBands().length > 0) ? id.getBands()[0] : extractInt(raw, "mBands=\\[(\\d+)", 0);
-                    String mcc = id.getMccString();
-                    String mnc = id.getMncString();
-                    String op = getOperatorName(mcc, mnc, id.getOperatorAlphaLong() != null ? id.getOperatorAlphaLong().toString() : "");
-                    String freq = getLteFreq(earfcn, band);
-                    String bw = getBandwidth(mcc, mnc, false, id.getBandwidth());
-
-                    int rsrp = sig.getRsrp();
-                    int rsrq = sig.getRsrq();
-                    int rssi = extractInt(raw, "rssi=(-?\\d+)", -105);
-                    int snr = extractInt(raw, "rssnr=(-?\\d+)", sig.getRssnr());
-                    int ta = extractInt(raw, "ta=(-?\\d+)", sig.getTimingAdvance());
-
-                    LinearLayout card = new LinearLayout(this);
-                    card.setOrientation(LinearLayout.VERTICAL);
-                    card.setPadding(dp(18), dp(18), dp(18), dp(16));
-                    card.setBackground(createCardBg(rsrp));
-
-                    card.addView(createHeader(op, (mcc != null ? mcc : "") + " " + (mnc != null ? mnc : "")));
-                    card.addView(createSubtitle("⚓  4G  |  LTE " + freq + "  |  " + bw));
-                    card.addView(createRow("CI", String.valueOf(ci), "EARFCN", String.valueOf(earfcn)));
-                    card.addView(createRow("eNb:CID", enb + ":" + cid, "RSSI", rssi + " dBm"));
-                    card.addView(createRow("TAC", String.valueOf(id.getTac()), "RSRP", rsrp + " dBm"));
-                    card.addView(createRow("PCI", String.valueOf(id.getPci()), "RSRQ", rsrq + " dB"));
-                    String snrStr = (snr > -50 && snr < 60) ? snr + " dB" : "N/A";
-                    if (ta >= 0 && ta < 1282) {
-                        card.addView(createRow("BW", bw, "SNR", snrStr));
-                        card.addView(createRow("TA", ta + " | " + formatTa(ta, false), "", ""));
-                    } else {
-                        card.addView(createRow("BW", bw, "SNR", snrStr));
-                    }
-                    card.addView(createFooter(op.substring(0, 1) + " | " + freq));
-                    mainContainer.addView(card);
-                    mainContainer.addView(createDivider(2, "#22262A"));
-
-                } else if (cell instanceof CellInfoNr) {
-                    CellInfoNr nr = (CellInfoNr) cell;
-                    CellIdentityNr id = (CellIdentityNr) nr.getCellIdentity();
-                    CellSignalStrengthNr sig = (CellSignalStrengthNr) nr.getCellSignalStrength();
-
+                    LinearLayout card = cardView(rsrp, op, mcc + " " + mnc, "⚓  4G  |  LTE " + fq + "  |  " + bw);
+                    card.addView(gridRow("CI", String.valueOf(ci), "EARFCN", String.valueOf(id.getEarfcn())));
+                    card.addView(gridRow("eNb:CID", (ci >> 8) + ":" + (ci & 0xFF), "RSSI", rssi + " dBm"));
+                    card.addView(gridRow("TAC", String.valueOf(id.getTac()), "RSRP", rsrp + " dBm"));
+                    card.addView(gridRow("PCI", String.valueOf(id.getPci()), "RSRQ", rsrq + " dB"));
+                    card.addView(gridRow("BW", bw, "SNR", (snr > -50 && snr < 60) ? snr + " dB" : "N/A"));
+                    if (ta >= 0 && ta < 1282) card.addView(gridRow("TA", taText(ta, false), "", ""));
+                    card.addView(footerView(op.charAt(0) + " | " + fq));
+                    root.addView(card);
+                    root.addView(div(2, 0xFF22262A));
+                } else if (c instanceof CellInfoNr) {
+                    CellIdentityNr id = (CellIdentityNr) ((CellInfoNr) c).getCellIdentity();
+                    CellSignalStrengthNr sg = (CellSignalStrengthNr) ((CellInfoNr) c).getCellSignalStrength();
                     long nci = id.getNci();
-                    long gnb = nci >> 12;
-                    long cid = nci & 0xFFF;
                     int arfcn = id.getNrarfcn();
-                    int band = (id.getBands() != null && id.getBands().length > 0) ? id.getBands()[0] : extractInt(raw, "mBands\\s*=\\s*\\[(\\d+)", 0);
-                    String mcc = id.getMccString();
-                    String mnc = id.getMncString();
-                    String op = getOperatorName(mcc, mnc, id.getOperatorAlphaLong() != null ? id.getOperatorAlphaLong().toString() : "");
-                    String freq = getNrFreq(arfcn, band);
-                    String bw = getBandwidth(mcc, mnc, true, -1);
+                    String mcc = id.getMccString(), mnc = id.getMncString();
+                    String op = opName(mcc, mnc, id.getOperatorAlphaLong());
+                    String fq = freqName(arfcn, true);
+                    String bw = bwText(mnc, true, -1, arfcn);
+                    int rsrp = sg.getSsRsrp(), rsrq = sg.getSsRsrq(), sinr = sg.getSsSinr();
+                    int ta = num(raw, "timingAdvance\\s*=\\s*(-?\\d+)", -1);
+                    boolean high = arfcn >= 460000 && arfcn <= 680000;
 
-                    int rsrp = sig.getSsRsrp();
-                    int rsrq = sig.getSsRsrq();
-                    int sinr = sig.getSsSinr();
-                    int ta = extractInt(raw, "timingAdvance\\s*=\\s*(-?\\d+)", -1);
-                    boolean high = is5gHighBand(arfcn, band);
-
-                    LinearLayout card = new LinearLayout(this);
-                    card.setOrientation(LinearLayout.VERTICAL);
-                    card.setPadding(dp(18), dp(18), dp(18), dp(16));
-                    card.setBackground(createCardBg(rsrp));
-
-                    card.addView(createHeader(op, (mcc != null ? mcc : "") + " " + (mnc != null ? mnc : "")));
-                    card.addView(createSubtitle("⚓  5G  |  SA " + freq));
-                    card.addView(createRow("CI", String.valueOf(nci), "ARFCN", String.valueOf(arfcn)));
-                    card.addView(createRow("gNB:CID", gnb + ":" + cid, "S-RSRP", rsrp + " dBm"));
-                    card.addView(createRow("TAC", String.valueOf(id.getTac()), "S-RSRQ", rsrq + " dB"));
-                    card.addView(createRow("PCI", String.valueOf(id.getPci()), "S-SNR", sinr + " dB"));
-                    card.addView(createRow("BW", bw, "TA", (ta >= 0 && ta < 1282) ? (ta + " | " + formatTa(ta, high)) : "N/A"));
-
-                    mainContainer.addView(card);
-                    mainContainer.addView(createDivider(2, "#22262A"));
+                    LinearLayout card = cardView(rsrp, op, mcc + " " + mnc, "⚓  5G  |  SA " + fq);
+                    card.addView(gridRow("CI", String.valueOf(nci), "ARFCN", String.valueOf(arfcn)));
+                    card.addView(gridRow("gNB:CID", (nci >> 12) + ":" + (nci & 0xFFF), "S-RSRP", rsrp + " dBm"));
+                    card.addView(gridRow("TAC", String.valueOf(id.getTac()), "S-RSRQ", rsrq + " dB"));
+                    card.addView(gridRow("PCI", String.valueOf(id.getPci()), "S-SNR", sinr + " dB"));
+                    card.addView(gridRow("BW", bw, "TA", taText(ta, high)));
+                    root.addView(card);
+                    root.addView(div(2, 0xFF22262A));
                 }
             }
-
-            for (CellInfo cell : neighbors) {
-                String raw = cell.toString();
-                if (cell instanceof CellInfoNr) {
-                    CellInfoNr nr = (CellInfoNr) cell;
-                    CellIdentityNr id = (CellIdentityNr) nr.getCellIdentity();
-                    CellSignalStrengthNr sig = (CellSignalStrengthNr) nr.getCellSignalStrength();
-                    int arfcn = id.getNrarfcn();
-                    String freq = getNrFreq(arfcn, 0);
-                    int rsrp = sig.getSsRsrp();
-                    int rsrq = sig.getSsRsrq();
-                    int sinr = sig.getSsSinr();
-                    String snrStr = (sinr >= -50 && sinr <= 50) ? String.valueOf(sinr) : "-";
-                    mainContainer.addView(createNeighbor("J | " + freq, String.valueOf(id.getPci()), String.valueOf(arfcn), rsrp, rsrq, snrStr));
-                    mainContainer.addView(createDivider(1, "#181B1E"));
-                } else if (cell instanceof CellInfoLte) {
-                    CellInfoLte lte = (CellInfoLte) cell;
-                    CellIdentityLte id = lte.getCellIdentity();
-                    CellSignalStrengthLte sig = lte.getCellSignalStrength();
-                    int earfcn = id.getEarfcn();
-                    if (id.getPci() < 0 || earfcn < 0) continue;
-                    String freq = getLteFreq(earfcn, 0);
-                    String tag = (earfcn == 9560 || earfcn == 415) ? "B | " + freq : "L | " + freq;
-                    int rsrp = sig.getRsrp();
-                    int rsrq = sig.getRsrq();
-                    int snr = extractInt(raw, "rssnr=(-?\\d+)", sig.getRssnr());
-                    String snrStr = (snr > -50 && snr < 50 && snr != 0) ? String.valueOf(snr) : "-";
-                    mainContainer.addView(createNeighbor(tag, String.valueOf(id.getPci()), String.valueOf(earfcn), rsrp, rsrq, snrStr));
-                    mainContainer.addView(createDivider(1, "#181B1E"));
+            for (CellInfo c : all) {
+                if (c.isRegistered()) continue;
+                String raw = c.toString();
+                if (c instanceof CellInfoNr) {
+                    CellIdentityNr id = (CellIdentityNr) ((CellInfoNr) c).getCellIdentity();
+                    CellSignalStrengthNr sg = (CellSignalStrengthNr) ((CellInfoNr) c).getCellSignalStrength();
+                    int ch = id.getNrarfcn(), sinr = sg.getSsSinr();
+                    root.addView(nbRow("J | " + freqName(ch, true), id.getPci(), ch, sg.getSsRsrp(), sg.getSsRsrq(),
+                        (sinr >= -50 && sinr <= 50) ? String.valueOf(sinr) : "-"));
+                    root.addView(div(1, 0xFF181B1E));
+                } else if (c instanceof CellInfoLte) {
+                    CellIdentityLte id = ((CellInfoLte) c).getCellIdentity();
+                    CellSignalStrengthLte sg = ((CellInfoLte) c).getCellSignalStrength();
+                    int ch = id.getEarfcn(), snr = num(raw, "rssnr=(-?\\d+)", sg.getRssnr());
+                    if (id.getPci() < 0 || ch < 0) continue;
+                    String pfx = (ch == 9560 || ch == 415) ? "B | " : "L | ";
+                    root.addView(nbRow(pfx + freqName(ch, false), id.getPci(), ch, sg.getRsrp(), sg.getRsrq(),
+                        (snr > -50 && snr < 50 && snr != 0) ? String.valueOf(snr) : "-"));
+                    root.addView(div(1, 0xFF181B1E));
                 }
             }
         } catch (SecurityException ignored) {}
     }
 
-    private LinearLayout createHeader(String op, String mccmnc) {
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
+    private LinearLayout cardView(int rsrp, String op, String mccmnc, String sub) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(18), dp(18), dp(18), dp(16));
+        int glow = rsrp >= -85 ? 0x552E6B3E : rsrp >= -95 ? 0x554A6321 : rsrp >= -105 ? 0x555A4D1E : rsrp >= -115 ? 0x554E3A1E : 0x55542424;
+        card.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR, new int[]{glow, 0xFF16191D, 0xFF101215}));
 
+        LinearLayout top = new LinearLayout(this);
+        top.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout left = new LinearLayout(this);
         left.setOrientation(LinearLayout.VERTICAL);
-        left.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-
-        TextView tvOp = new TextView(this);
-        tvOp.setText(op);
-        tvOp.setTextColor(Color.WHITE);
-        tvOp.setTextSize(19);
-        tvOp.setTypeface(null, Typeface.BOLD);
+        left.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1f));
+        TextView tvOp = tv(op, 19, 0xFFFFFFFF, true);
         left.addView(tvOp);
 
         View bar = new View(this);
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Color.parseColor("#88A67C2E"));
+        bg.setColor(0x88A67C2E);
         bg.setCornerRadius(dp(4));
         bar.setBackground(bg);
         LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(dp(52), dp(4));
@@ -353,74 +247,80 @@ public class MainActivity extends AppCompatActivity {
         bar.setLayoutParams(bp);
         left.addView(bar);
 
-        TextView tvRight = new TextView(this);
-        tvRight.setText(mccmnc);
-        tvRight.setTextColor(Color.parseColor("#C4C7C5"));
-        tvRight.setTextSize(15);
+        top.addView(left);
+        top.addView(tv(mccmnc, 15, 0xFFC4C7C5, false));
+        card.addView(top);
 
-        row.addView(left);
-        row.addView(tvRight);
-        return row;
+        TextView tvSub = tv(sub, 15, 0xFFDCE0E5, false);
+        tvSub.setPadding(0, dp(10), 0, dp(10));
+        card.addView(tvSub);
+        return card;
     }
 
-    private TextView createSubtitle(String text) {
-        TextView tv = new TextView(this);
-        tv.setText(text);
-        tv.setTextColor(Color.parseColor("#DCE0E5"));
-        tv.setTextSize(15);
-        tv.setPadding(0, dp(10), 0, dp(10));
+    private LinearLayout gridRow(String l1, String v1, String l2, String v2) {
+        LinearLayout r = new LinearLayout(this);
+        r.setPadding(0, dp(3), 0, dp(3));
+        r.addView(cell(l1, 0xFFC4C7C5, 0.85f));
+        r.addView(cell(v1, 0xFFFFFFFF, 1.35f));
+        r.addView(cell(l2, 0xFFC4C7C5, 0.85f));
+        r.addView(cell(v2, 0xFFFFFFFF, 1.15f));
+        return r;
+    }
+
+    private TextView cell(String t, int c, float w) {
+        TextView tv = tv(t, 15, c, false);
+        tv.setLayoutParams(new LinearLayout.LayoutParams(0, -2, w));
         return tv;
     }
 
-    private LinearLayout createRow(String l1, String v1, String l2, String v2) {
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setPadding(0, dp(3), 0, dp(3));
-        row.addView(createCell(l1, "#C4C7C5", 0.85f));
-        row.addView(createCell(v1, "#FFFFFF", 1.35f));
-        row.addView(createCell(l2, "#C4C7C5", 0.85f));
-        row.addView(createCell(v2, "#FFFFFF", 1.15f));
-        return row;
+    private LinearLayout footerView(String tag) {
+        LinearLayout r = new LinearLayout(this);
+        r.setGravity(Gravity.CENTER_VERTICAL);
+        r.setPadding(0, dp(10), 0, 0);
+        r.addView(pill(tag));
+        r.addView(tv("  Tap to add location", 15, 0xFF2EA866, false));
+        return r;
     }
 
-    private TextView createCell(String text, String hex, float weight) {
-        TextView tv = new TextView(this);
-        tv.setText(text);
-        tv.setTextColor(Color.parseColor(hex));
-        tv.setTextSize(15);
-        tv.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, weight));
-        return tv;
-    }
-
-    private LinearLayout createFooter(String pillText) {
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(0, dp(10), 0, 0);
-        row.addView(createPill(pillText));
-
-        TextView tv = new TextView(this);
-        tv.setText("  Tap to add location");
-        tv.setTextColor(Color.parseColor("#2EA866"));
-        tv.setTextSize(15);
-        row.addView(tv);
-        return row;
-    }
-
-    private TextView createPill(String text) {
-        TextView pill = new TextView(this);
-        pill.setText(text);
-        pill.setTextColor(Color.parseColor("#4CD987"));
-        pill.setTextSize(12);
-        pill.setTypeface(null, Typeface.BOLD);
-        pill.setPadding(dp(8), dp(2), dp(8), dp(2));
-
+    private TextView pill(String t) {
+        TextView p = tv(t, 12, 0xFF4CD987, true);
+        p.setPadding(dp(8), dp(2), dp(8), dp(2));
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Color.parseColor("#122B21"));
+        bg.setColor(0xFF122B21);
         bg.setCornerRadius(dp(6));
-        bg.setStroke(dp(1), Color.parseColor("#2EA866"));
-        pill.setBackground(bg);
-        return pill;
+        bg.setStroke(dp(1), 0xFF2EA866);
+        p.setBackground(bg);
+        return p;
     }
 
-    private LinearLayout createNeighbor(String tag, String pci, String ar
+    private LinearLayout nbRow(String tag, int pci, int ch, int rsrp, int rsrq, String snr) {
+        LinearLayout r = new LinearLayout(this);
+        r.setGravity(Gravity.CENTER_VERTICAL);
+        r.setPadding(dp(16), dp(12), dp(16), dp(12));
+        r.addView(pill(tag));
+        TextView tvPci = tv("   " + pci, 16, 0xFFFFFFFF, false);
+        tvPci.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1f));
+        r.addView(tvPci);
+        r.addView(tv(ch + "   ", 14, 0xFF9AA0A6, false));
+        r.addView(tv(rsrp + " | " + rsrq + " | " + snr + "  ", 16, 0xFFFFFFFF, false));
+        r.addView(tv("●", 12, rsrp >= -90 ? 0xFF4CAF50 : rsrp >= -105 ? 0xFFFFA726 : 0xFFEF5350, false));
+        return r;
+    }
+
+    private TextView tv(String t, int sp, int col, boolean bold) {
+        TextView v = new TextView(this);
+        v.setText(t);
+        v.setTextSize(sp);
+        v.setTextColor(col);
+        if (bold) v.setTypeface(null, Typeface.BOLD);
+        return v;
+    }
+
+    private View div(int hDp, int col) {
+        View v = new View(this);
+        v.setLayoutParams(new LinearLayout.LayoutParams(-1, dp(hDp)));
+        v.setBackgroundColor(col);
+        return v;
+    }
+}
+// END OF FILE
