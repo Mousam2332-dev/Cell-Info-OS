@@ -6,6 +6,8 @@ import android.graphics.*;
 import android.graphics.drawable.*;
 import android.os.*;
 import android.telephony.*;
+import android.text.*;
+import android.text.style.*;
 import android.util.TypedValue;
 import android.view.*;
 import android.widget.*;
@@ -18,6 +20,9 @@ public class MainActivity extends AppCompatActivity {
     private TelephonyManager tm;
     private SubscriptionManager sm;
     private LinearLayout root;
+    private final Typeface tfReg = Typeface.create("sans-serif", Typeface.NORMAL);
+    private final Typeface tfMed = Typeface.create("sans-serif-medium", Typeface.NORMAL);
+    private final Typeface tfBold = Typeface.create("sans-serif", Typeface.BOLD);
     private final Handler h = new Handler(Looper.getMainLooper());
     private final Runnable task = new Runnable() {
         @Override public void run() { update(); h.postDelayed(this, 1000); }
@@ -84,6 +89,20 @@ public class MainActivity extends AppCompatActivity {
         return def;
     }
 
+    private CharSequence fmt(String s) {
+        if (s == null || s.isEmpty()) return "";
+        SpannableString sp = new SpannableString(s);
+        Matcher m = Pattern.compile("(dBm|dB|MHz|km|\\bm\\b)").matcher(s);
+        while (m.find()) {
+            sp.setSpan(new RelativeSizeSpan(0.78f), m.start(), m.end(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        Matcher p = Pattern.compile("\\|").matcher(s);
+        while (p.find()) {
+            sp.setSpan(new ForegroundColorSpan(0xFF687078), p.start(), p.end(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        return sp;
+    }
+
     private String opName(String mcc, String mnc, CharSequence alpha) {
         if ("404".equals(mcc) && "74".equals(mnc)) return "BSNL";
         if ("405".equals(mcc) && "840".equals(mnc)) return "JIO";
@@ -116,10 +135,32 @@ public class MainActivity extends AppCompatActivity {
         return String.valueOf(ch);
     }
 
+    private String bandCode(int ch, boolean nr) {
+        if (nr) {
+            if (ch >= 151600 && ch <= 160600) return "n28";
+            if (ch >= 620000 && ch <= 653333) return "n78";
+            if (ch > 653333 && ch <= 680000) return "n77";
+            if (ch >= 499200 && ch <= 537999) return "n41";
+            if (ch >= 460000 && ch <= 480000) return "n40";
+            if (ch >= 422000 && ch <= 434000) return "n1";
+            if (ch >= 361000 && ch <= 376000) return "n3";
+            return "NR";
+        } else {
+            if (ch >= 9210 && ch <= 9659) return "B28";
+            if (ch >= 0 && ch <= 599) return "B1";
+            if (ch >= 1200 && ch <= 1949) return "B3";
+            if (ch >= 2400 && ch <= 2649) return "B5";
+            if (ch >= 3450 && ch <= 3799) return "B8";
+            if (ch >= 38650 && ch <= 39649) return "B40";
+            if (ch >= 39650 && ch <= 41589) return "B41";
+            return "LTE";
+        }
+    }
+
     private String taText(int ta, boolean high5G) {
         if (ta < 0 || ta >= 1282) return "N/A";
         long m = Math.round(ta * (high5G ? 39.0625 : 78.125));
-        return ta + "  |  " + (m >= 1000 ? String.format(Locale.US, "%.2f km", m / 1000.0) : m + " m");
+        return ta + " | " + (m >= 1000 ? String.format(Locale.US, "%.1f km", m / 1000.0) : m + " m");
     }
 
     private String bwText(String mnc, boolean nr, int khz, int ch) {
@@ -149,6 +190,7 @@ public class MainActivity extends AppCompatActivity {
             }
         } catch (Exception ignored) {}
         if (khz > 0 && khz < 1000000) return (khz / 1000) + " MHz";
+        if (!nr && ch == 415) return "5 MHz";
         return (nr && ch >= 620000) ? "100 MHz" : "10 MHz";
     }
 
@@ -178,20 +220,20 @@ public class MainActivity extends AppCompatActivity {
                     String fq = freqName(id.getEarfcn(), false);
                     String bw = bwText(mnc, false, id.getBandwidth(), id.getEarfcn());
                     int rsrp = sg.getRsrp(), rsrq = sg.getRsrq();
-                    int rssi = num(raw, "rssi=(-?\\d+)", -105);
+                    int rssi = num(raw, "rssi=(-?\\d+)", -103);
                     int snr = num(raw, "rssnr=(-?\\d+)", sg.getRssnr());
                     int ta = num(raw, "ta=(-?\\d+)", sg.getTimingAdvance());
 
-                    LinearLayout card = cardView(rsrp, op, mcc + " " + mnc, "⚓  4G  |  LTE " + fq + "  |  " + bw);
+                    LinearLayout card = cardView(rsrp, op, mcc + " " + mnc, "⚓  4G | LTE " + fq + " | " + bw);
                     card.addView(gridRow("CI", String.valueOf(ci), "EARFCN", String.valueOf(id.getEarfcn())));
-                    card.addView(gridRow("eNb:CID", (ci >> 8) + ":" + (ci & 0xFF), "RSSI", rssi + " dBm"));
-                    card.addView(gridRow("TAC", String.valueOf(id.getTac()), "RSRP", rsrp + " dBm"));
-                    card.addView(gridRow("PCI", String.valueOf(id.getPci()), "RSRQ", rsrq + " dB"));
-                    card.addView(gridRow("BW", bw, "SNR", (snr > -50 && snr < 60) ? snr + " dB" : "N/A"));
-                    if (ta >= 0 && ta < 1282) card.addView(gridRow("TA", taText(ta, false), "", ""));
-                    card.addView(footerView(op.charAt(0) + " | " + fq));
+                    card.addView(gridRow("eNb", String.valueOf(ci >> 8), "RSSI", rssi + " dBm"));
+                    card.addView(gridRow("CID", String.valueOf(ci & 0xFF), "RSRP", rsrp + " dBm"));
+                    card.addView(gridRow("TAC", String.valueOf(id.getTac()), "RSRQ", rsrq + " dB"));
+                    card.addView(gridRow("PCI", String.valueOf(id.getPci()), "SNR", (snr > -50 && snr < 60) ? snr + " dB" : "N/A"));
+                    card.addView(gridRow("BW", bw, "TA", (ta >= 0 && ta < 1282) ? taText(ta, false) : "N/A"));
+                    card.addView(calcBtn());
                     root.addView(card);
-                    root.addView(div(2, 0xFF262A2E));
+                    root.addView(div(2, 0xFF22262A));
                 } else if (c instanceof CellInfoNr) {
                     CellIdentityNr id = (CellIdentityNr) ((CellInfoNr) c).getCellIdentity();
                     CellSignalStrengthNr sg = (CellSignalStrengthNr) ((CellInfoNr) c).getCellSignalStrength();
@@ -205,14 +247,16 @@ public class MainActivity extends AppCompatActivity {
                     int ta = num(raw, "timingAdvance\\s*=\\s*(-?\\d+)", -1);
                     boolean high = arfcn >= 460000 && arfcn <= 680000;
 
-                    LinearLayout card = cardView(rsrp, op, mcc + " " + mnc, "⚓  5G  |  SA " + fq);
+                    LinearLayout card = cardView(rsrp, op, mcc + " " + mnc, "⚓  5G | SA " + fq);
                     card.addView(gridRow("CI", String.valueOf(nci), "ARFCN", String.valueOf(arfcn)));
-                    card.addView(gridRow("gNB:CID", (nci >> 12) + ":" + (nci & 0xFFF), "S-RSRP", rsrp + " dBm"));
-                    card.addView(gridRow("TAC", String.valueOf(id.getTac()), "S-RSRQ", rsrq + " dB"));
-                    card.addView(gridRow("PCI", String.valueOf(id.getPci()), "S-SNR", sinr + " dB"));
-                    card.addView(gridRow("BW", bw, "TA", taText(ta, high)));
+                    card.addView(gridRow("gNB", String.valueOf(nci >> 12), "S-RSRP", rsrp + " dBm"));
+                    card.addView(gridRow("CID", String.valueOf(nci & 0xFFF), "S-RSRQ", rsrq + " dB"));
+                    card.addView(gridRow("TAC", String.valueOf(id.getTac()), "S-SNR", sinr + " dB"));
+                    card.addView(gridRow("PCI", String.valueOf(id.getPci()), "TA", taText(ta, high)));
+                    card.addView(gridRow("BW", bw, "", ""));
+                    card.addView(calcBtn());
                     root.addView(card);
-                    root.addView(div(2, 0xFF262A2E));
+                    root.addView(div(2, 0xFF22262A));
                 }
             }
             for (CellInfo c : all) {
@@ -222,17 +266,20 @@ public class MainActivity extends AppCompatActivity {
                     CellIdentityNr id = (CellIdentityNr) ((CellInfoNr) c).getCellIdentity();
                     CellSignalStrengthNr sg = (CellSignalStrengthNr) ((CellInfoNr) c).getCellSignalStrength();
                     int ch = id.getNrarfcn(), sinr = sg.getSsSinr();
-                    root.addView(nbRow("J | " + freqName(ch, true), id.getPci(), ch, sg.getSsRsrp(), sg.getSsRsrq(),
-                        (sinr >= -50 && sinr <= 50) ? String.valueOf(sinr) : "-"));
+                    root.addView(nbRow("J | " + bandCode(ch, true), id.getPci(), ch,
+                        String.valueOf(sg.getSsRsrp()), String.valueOf(sg.getSsRsrq()),
+                        (sinr >= -50 && sinr <= 50) ? String.valueOf(sinr) : "-", sg.getSsRsrp()));
                     root.addView(div(1, 0xFF181B1E));
                 } else if (c instanceof CellInfoLte) {
                     CellIdentityLte id = ((CellInfoLte) c).getCellIdentity();
                     CellSignalStrengthLte sg = ((CellInfoLte) c).getCellSignalStrength();
-                    int ch = id.getEarfcn(), snr = num(raw, "rssnr=(-?\\d+)", sg.getRssnr());
+                    int ch = id.getEarfcn();
                     if (id.getPci() < 0 || ch < 0) continue;
+                    int rssi = num(raw, "rssi=(-?\\d+)", sg.getRsrp() + 12);
                     String pfx = (ch == 9560 || ch == 415) ? "B | " : "L | ";
-                    root.addView(nbRow(pfx + freqName(ch, false), id.getPci(), ch, sg.getRsrp(), sg.getRsrq(),
-                        (snr > -50 && snr < 50 && snr != 0) ? String.valueOf(snr) : "-"));
+                    root.addView(nbRow(pfx + bandCode(ch, false), id.getPci(), ch,
+                        String.valueOf(rssi), String.valueOf(sg.getRsrp()),
+                        String.valueOf(sg.getRsrq()), sg.getRsrp()));
                     root.addView(div(1, 0xFF181B1E));
                 }
             }
@@ -242,19 +289,19 @@ public class MainActivity extends AppCompatActivity {
     private LinearLayout cardView(int rsrp, String op, String mccmnc, String sub) {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
-        card.setPadding(dp(18), dp(20), dp(18), dp(16));
+        card.setPadding(dp(18), dp(18), dp(18), dp(16));
 
         int glowCore, glowMid, barCol;
         if (rsrp >= -85) {
-            glowCore = 0xAA3B7A3E; glowMid = 0x44254D28; barCol = 0xCC55A659; // Strong Green
+            glowCore = 0x993B7A3E; glowMid = 0x38254D28; barCol = 0xCC55A659;
         } else if (rsrp >= -95) {
-            glowCore = 0xAA587324; glowMid = 0x44374717; barCol = 0xCC82A636; // Good Lime-Olive
+            glowCore = 0x99587324; glowMid = 0x38374717; barCol = 0xCC82A636;
         } else if (rsrp >= -105) {
-            glowCore = 0xAA706122; glowMid = 0x44453B15; barCol = 0xCCA89232; // Fair Golden-Olive
+            glowCore = 0x99706122; glowMid = 0x38453B15; barCol = 0xCCA89232;
         } else if (rsrp >= -115) {
-            glowCore = 0xAA634E22; glowMid = 0x443D3015; barCol = 0xCC997833; // Weak Warm Amber-Olive
+            glowCore = 0x99635124; glowMid = 0x383B3016; barCol = 0xCC8F7534;
         } else {
-            glowCore = 0xAA663326; glowMid = 0x44402018; barCol = 0xCC994D39; // Very Weak Rust-Amber
+            glowCore = 0x99663826; glowMid = 0x38402218; barCol = 0xCC995239;
         }
 
         GradientDrawable base = new GradientDrawable();
@@ -262,8 +309,8 @@ public class MainActivity extends AppCompatActivity {
 
         GradientDrawable radial = new GradientDrawable();
         radial.setGradientType(GradientDrawable.RADIAL_GRADIENT);
-        radial.setGradientCenter(0.18f, 0.22f);
-        radial.setGradientRadius(dp(290));
+        radial.setGradientCenter(0.32f, 0.12f);
+        radial.setGradientRadius(dp(280));
         radial.setColors(new int[]{glowCore, glowMid, 0x00101215});
 
         card.setBackground(new LayerDrawable(new Drawable[]{base, radial}));
@@ -273,23 +320,23 @@ public class MainActivity extends AppCompatActivity {
         LinearLayout left = new LinearLayout(this);
         left.setOrientation(LinearLayout.VERTICAL);
         left.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1f));
-        left.addView(tv(op, 19, 0xFFFFFFFF, true));
+        left.addView(tv(op, 19, 0xFFFFFFFF, tfBold));
 
         View bar = new View(this);
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(barCol);
         bg.setCornerRadius(dp(4));
         bar.setBackground(bg);
-        LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(dp(56), dp(5));
+        LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(dp(58), dp(5));
         bp.setMargins(0, dp(2), 0, 0);
         bar.setLayoutParams(bp);
         left.addView(bar);
 
         top.addView(left);
-        top.addView(tv(mccmnc, 15, 0xFFC4C7C5, false));
+        top.addView(tv(mccmnc, 15, 0xFFC4C7C5, tfMed));
         card.addView(top);
 
-        TextView tvSub = tv(sub, 15, 0xFFDCE0E5, false);
+        TextView tvSub = tv(fmt(sub), 15, 0xFFE2E6EB, tfMed);
         tvSub.setPadding(0, dp(10), 0, dp(10));
         card.addView(tvSub);
         return card;
@@ -298,68 +345,78 @@ public class MainActivity extends AppCompatActivity {
     private LinearLayout gridRow(String l1, String v1, String l2, String v2) {
         LinearLayout r = new LinearLayout(this);
         r.setPadding(0, dp(3), 0, dp(3));
-        r.addView(cell(l1, 0xFFC4C7C5, 0.85f));
-        r.addView(cell(v1, 0xFFFFFFFF, 1.35f));
-        r.addView(cell(l2, 0xFFC4C7C5, 0.85f));
-        r.addView(cell(v2, 0xFFFFFFFF, 1.15f));
+        r.addView(cell(l1, 0xFFC4C7C5, tfReg, 0.72f));
+        r.addView(cell(fmt(v1), 0xFFFFFFFF, tfMed, 1.38f));
+        r.addView(cell(l2, 0xFFC4C7C5, tfReg, 0.85f));
+        r.addView(cell(fmt(v2), 0xFFFFFFFF, tfMed, 1.05f));
         return r;
     }
 
-    private TextView cell(String t, int c, float w) {
-        TextView tv = tv(t, 15, c, false);
-        tv.setLayoutParams(new LinearLayout.LayoutParams(0, -2, w));
-        return tv;
+    private TextView cell(CharSequence t, int c, Typeface tf, float w) {
+        TextView v = tv(t, 15, c, tf);
+        v.setLayoutParams(new LinearLayout.LayoutParams(0, -2, w));
+        return v;
     }
 
-    private LinearLayout footerView(String tag) {
-        LinearLayout r = new LinearLayout(this);
-        r.setGravity(Gravity.CENTER_VERTICAL);
-        r.setPadding(0, dp(10), 0, 0);
-        r.addView(pill(tag));
-        r.addView(tv("  Tap to add location", 15, 0xFF2EA866, false));
-        return r;
+    private TextView calcBtn() {
+        TextView b = tv("✣  Calculate location", 15, 0xFF4CA6D8, tfMed);
+        b.setGravity(Gravity.CENTER);
+        b.setPadding(0, dp(11), 0, dp(11));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(0xFF192B36);
+        bg.setCornerRadius(dp(10));
+        b.setBackground(bg);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
+        lp.setMargins(0, dp(12), 0, dp(2));
+        b.setLayoutParams(lp);
+        return b;
     }
 
     private TextView pill(String t) {
-        TextView p = tv(t, 12, 0xFF4CD987, true);
-        p.setPadding(dp(8), dp(2), dp(8), dp(2));
+        TextView p = tv(fmt(t), 12, 0xFF38C976, tfMed);
+        p.setGravity(Gravity.CENTER);
+        p.setLayoutParams(new LinearLayout.LayoutParams(dp(68), dp(23)));
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(0xFF122B21);
+        bg.setColor(0xFF10241B);
         bg.setCornerRadius(dp(6));
-        bg.setStroke(dp(1), 0xFF2EA866);
+        bg.setStroke(dp(1), 0xFF268C53);
         p.setBackground(bg);
         return p;
     }
 
-    private LinearLayout nbRow(String tag, int pci, int ch, int rsrp, int rsrq, String snr) {
+    private LinearLayout nbRow(String tag, int pci, int ch, String s1, String s2, String s3, int rsrp) {
         LinearLayout r = new LinearLayout(this);
         r.setGravity(Gravity.CENTER_VERTICAL);
-        r.setPadding(dp(16), dp(12), dp(16), dp(12));
+        r.setPadding(dp(16), dp(12), dp(14), dp(12));
         r.addView(pill(tag));
-        TextView tvPci = tv("   " + pci, 16, 0xFFFFFFFF, false);
+
+        TextView tvPci = tv(String.valueOf(pci), 16, 0xFFFFFFFF, tfMed);
+        tvPci.setPadding(dp(12), 0, 0, 0);
         tvPci.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1f));
         r.addView(tvPci);
-        r.addView(tv(ch + "   ", 14, 0xFF9AA0A6, false));
-        r.addView(tv(rsrp + " | " + rsrq + " | " + snr + "  ", 16, 0xFFFFFFFF, false));
-        r.addView(tv("●", 12, rsrp >= -90 ? 0xFF4CAF50 : rsrp >= -105 ? 0xFFFFA726 : 0xFFEF5350, false));
+
+        r.addView(fixedTv(String.valueOf(ch), 14, 0xFFC4C7C5, tfReg, dp(62), Gravity.END));
+        r.addView(fixedTv(s1, 16, 0xFFFFFFFF, tfMed, dp(42), Gravity.END));
+        r.addView(fixedTv("|", 15, 0xFF687078, tfReg, dp(12), Gravity.CENTER));
+        r.addView(fixedTv(s2, 16, 0xFFFFFFFF, tfMed, dp(34), Gravity.END));
+        r.addView(fixedTv("|", 15, 0xFF687078, tfReg, dp(12), Gravity.CENTER));
+        r.addView(fixedTv(s3, 16, 0xFFFFFFFF, tfMed, dp(30), Gravity.END));
+
+        int dotCol = rsrp >= -95 ? 0xFF66BB6A : rsrp >= -110 ? 0xFFA8B545 : rsrp >= -120 ? 0xFFE67E45 : 0xFFEF5350;
+        r.addView(fixedTv("●", 11, dotCol, tfReg, dp(18), Gravity.END));
         return r;
     }
 
-    private TextView tv(String t, int sp, int col, boolean bold) {
+    private TextView fixedTv(CharSequence t, int sp, int col, Typeface tf, int wPx, int grav) {
+        TextView v = tv(t, sp, col, tf);
+        v.setGravity(grav);
+        v.setLayoutParams(new LinearLayout.LayoutParams(wPx, -2));
+        return v;
+    }
+
+    private TextView tv(CharSequence t, int sp, int col, Typeface tf) {
         TextView v = new TextView(this);
         v.setText(t);
         v.setTextSize(sp);
         v.setTextColor(col);
-        if (bold) v.setTypeface(null, Typeface.BOLD);
-        return v;
-    }
-
-    private View div(int hDp, int col) {
-        View v = new View(this);
-        v.setLayoutParams(new LinearLayout.LayoutParams(-1, dp(hDp)));
-        v.setBackgroundColor(col);
-        return v;
-    }
-}
-// END OF FILE
-                     
+        v.se
