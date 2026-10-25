@@ -2,13 +2,15 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0E1013"
-    android:fillViewport="true">
+    android:padding="16dp"
+    android:background="#000000">
 
-    <LinearLayout
-        android:id="@+id/cards_container"
+    <TextView
+        android:id="@+id/rawText"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical" />
+        android:textColor="#00FF00"
+        android:textSize="12sp"
+        android:fontFamily="monospace"/>
 
 </ScrollView>
