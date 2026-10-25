@@ -4,6 +4,8 @@ import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.telephony.CellInfo;
 import android.telephony.ServiceState;
 import android.telephony.SignalStrength;
@@ -20,6 +22,10 @@ public class MainActivity extends AppCompatActivity {
 
     private TextView rawDataText;
     private static final int PERMISSION_REQ_CODE = 100;
+    
+    // Handler to manage the 2-second refresh loop
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private Runnable refreshRunnable;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -27,6 +33,16 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         
         rawDataText = findViewById(R.id.rawText);
+        
+        // Define the repeating task
+        refreshRunnable = new Runnable() {
+            @Override
+            public void run() {
+                fetchAndDisplayData();
+                handler.postDelayed(this, 2000); // 2000 ms = 2 seconds
+            }
+        };
+
         checkPermissionsAndRun();
     }
 
@@ -40,7 +56,7 @@ public class MainActivity extends AppCompatActivity {
                     Manifest.permission.READ_PHONE_STATE
             }, PERMISSION_REQ_CODE);
         } else {
-            fetchAndDisplayData();
+            startRefreshing();
         }
     }
 
@@ -48,10 +64,21 @@ public class MainActivity extends AppCompatActivity {
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == PERMISSION_REQ_CODE && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            fetchAndDisplayData();
+            startRefreshing();
         } else {
             rawDataText.setText("Please grant Location and Phone permissions to scan networks.");
         }
+    }
+
+    private void startRefreshing() {
+        handler.removeCallbacks(refreshRunnable); // Clear any existing loops
+        handler.post(refreshRunnable); // Start the refresh loop
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        handler.removeCallbacks(refreshRunnable); // Stop refreshing when app closes
     }
 
     @SuppressWarnings("MissingPermission")
