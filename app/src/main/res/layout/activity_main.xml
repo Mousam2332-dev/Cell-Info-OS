@@ -2,16 +2,79 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp"
     android:background="#000000"
-    android:fitsSystemWindows="true"> 
+    android:padding="16dp"
+    android:fitsSystemWindows="true">
 
-    <TextView
-        android:id="@+id/rawText"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textColor="#00FF00"
-        android:textSize="12sp"
-        android:fontFamily="monospace"/>
+        android:orientation="vertical">
 
+        <!-- SIM 1 Card -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+            <TextView android:id="@+id/carrier_title_1" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Waiting for SIM 1..." android:textColor="#FFFFFF" android:textSize="22sp" android:textStyle="bold" android:layout_marginBottom="16dp"/>
+            
+            <TableLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:stretchColumns="1,3">
+                <TableRow android:layout_marginBottom="8dp">
+                    <TextView android:text="Cell ID" android:textColor="#888888" android:textSize="14sp" android:paddingEnd="16dp"/>
+                    <TextView android:id="@+id/sim1_cellid" android:text="-" android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold"/>
+                    <TextView android:text="ARFCN" android:textColor="#888888" android:textSize="14sp" android:paddingEnd="16dp"/>
+                    <TextView android:id="@+id/sim1_arfcn" android:text="-" android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold"/>
+                </TableRow>
+                <TableRow android:layout_marginBottom="8dp">
+                    <TextView android:text="TAC" android:textColor="#888888" android:textSize="14sp"/>
+                    <TextView android:id="@+id/sim1_tac" android:text="-" android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold"/>
+                    <TextView android:text="RSRP" android:textColor="#888888" android:textSize="14sp"/>
+                    <TextView android:id="@+id/sim1_rsrp" android:text="-" android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold"/>
+                </TableRow>
+                <TableRow android:layout_marginBottom="8dp">
+                    <TextView android:text="PCI" android:textColor="#888888" android:textSize="14sp"/>
+                    <TextView android:id="@+id/sim1_pci" android:text="-" android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold"/>
+                    <TextView android:text="RSRQ" android:textColor="#888888" android:textSize="14sp"/>
+                    <TextView android:id="@+id/sim1_rsrq" android:text="-" android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold"/>
+                </TableRow>
+                <TableRow android:layout_marginBottom="16dp">
+                    <TextView android:text="BW" android:textColor="#888888" android:textSize="14sp"/>
+                    <TextView android:id="@+id/sim1_bw" android:text="-" android:textColor="#FFFFFF" android:textSize="14sp" android:textStyle="bold"/>
+                    <TextView android:text="SINR" android:textColor="#888888" android:textSize="14sp"/>
+                    <TextView android:id="@+id/sim1_sinr" android:text="-" android:textColor="#FFFFFF" android:textSize="14sp" android:textStyle="bold"/>
+                </TableRow>
+            </TableLayout>
+        </LinearLayout>
+
+        <View android:layout_width="match_parent" android:layout_height="1dp" android:background="#333333" android:layout_marginVertical="16dp"/>
+
+        <!-- SIM 2 Card -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+            <TextView android:id="@+id/carrier_title_2" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Waiting for SIM 2..." android:textColor="#FFFFFF" android:textSize="22sp" android:textStyle="bold" android:layout_marginBottom="16dp"/>
+            
+            <TableLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:stretchColumns="1,3">
+                <TableRow android:layout_marginBottom="8dp">
+                    <TextView android:text="Cell ID" android:textColor="#888888" android:textSize="14sp" android:paddingEnd="16dp"/>
+                    <TextView android:id="@+id/sim2_cellid" android:text="-" android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold"/>
+                    <TextView android:text="ARFCN" android:textColor="#888888" android:textSize="14sp" android:paddingEnd="16dp"/>
+                    <TextView android:id="@+id/sim2_arfcn" android:text="-" android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold"/>
+                </TableRow>
+                <TableRow android:layout_marginBottom="8dp">
+                    <TextView android:text="TAC" android:textColor="#888888" android:textSize="14sp"/>
+                    <TextView android:id="@+id/sim2_tac" android:text="-" android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold"/>
+                    <TextView android:text="RSRP" android:textColor="#888888" android:textSize="14sp"/>
+                    <TextView android:id="@+id/sim2_rsrp" android:text="-" android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold"/>
+                </TableRow>
+                <TableRow android:layout_marginBottom="8dp">
+                    <TextView android:text="PCI" android:textColor="#888888" android:textSize="14sp"/>
+                    <TextView android:id="@+id/sim2_pci" android:text="-" android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold"/>
+                    <TextView android:text="RSRQ" android:textColor="#888888" android:textSize="14sp"/>
+                    <TextView android:id="@+id/sim2_rsrq" android:text="-" android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold"/>
+                </TableRow>
+                <TableRow android:layout_marginBottom="16dp">
+                    <TextView android:text="BW" android:textColor="#888888" android:textSize="14sp"/>
+                    <TextView android:id="@+id/sim2_bw" android:text="-" android:textColor="#FFFFFF" android:textSize="14sp" android:textStyle="bold"/>
+                    <TextView android:text="SINR" android:textColor="#888888" android:textSize="14sp"/>
+                    <TextView android:id="@+id/sim2_sinr" android:text="-" android:textColor="#FFFFFF" android:textSize="14sp" android:textStyle="bold"/>
+                </TableRow>
+            </TableLayout>
+        </LinearLayout>
+    </LinearLayout>
 </ScrollView>
